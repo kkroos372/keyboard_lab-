@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KeyboardLab</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <!-- iOS用メタタグ -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="KeyboardLab">
+  <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+  <h1>KeyboardLab</h1>
+  <!-- アプリのコンテンツ -->
+  
+  <script src="app.js"></script>
+  <script>
+    // Service Workerの登録
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/keyboardlab/sw.js')
+        .then(reg => console.log('Service Worker registered', reg))
+        .catch(err => console.error('Service Worker registration failed', err));
+    }
+  </script>
+</body>
+</html>
+```
+
+### 2. マニフェストファイル (manifest.json)
+```json
+{
+  "name": "KeyboardLab",
+  "short_name": "KeyboardLab",
+  "start_url": "/keyboardlab/index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/keyboardlab/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/keyboardlab/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+```
+
+### 3. Service Workerファイル (sw.js)
+```javascript
+const CACHE_NAME = 'keyboardlab-v1';
+const ASSETS = [
+  '/keyboardlab/',
+  '/keyboardlab/index.html',
+  '/keyboardlab/style.css',
+  '/keyboardlab/app.js',
+  '/keyboardlab/manifest.json',
+  '/keyboardlab/icon-192.png',
+  '/keyboardlab/icon-512.png'
+];
+
+// キャッシュのインストール
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(ASSETS))
+      .then(() => self.skipWaiting())
+  );
+});
+
+// 古いキャッシュの削除
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keyList => {
+      return Promise.all(
+        keyList.map(key => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      );
+    })
+  );
+  return self.clients.claim();
+});
+
+// ネットワークリクエストの処理
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request).then(response => {
+      // キャッシュがあればそれを返す
+      if (response) {
+        return response;
+      }
+      // なければネットワークから取得
+      return fetch(event.request).then(response => {
+        // レスポンスが有効でなければそのまま返す
+        if (!response || response.status !== 200 || response.type !== 'basic') {
+          return response;
+        }
+        // 有効なレスポンスはキャッシュに保存してから返す
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, responseToCache);
+        });
+        return response;
+      });
+    })
+  );
+});
