@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KeyboardLab</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="feed-style.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f46e5">
   <!-- iOS用設定 -->
@@ -20,7 +21,7 @@
 <body>
   <header>
     <h1>KeyboardLab</h1>
-    <p class="version">デバッグ版 v1.0.1</p>
+    <p class="version">バージョン 1.1.0</p>
   </header>
   
   <main>
@@ -54,21 +55,17 @@
       </div>
       
       <div id="info" class="tab-content">
-        <div class="info-content">
-          <h2>KeyboardLab</h2>
-          <p>分割キーボード・キースイッチ・キーキャップを管理するためのPWAアプリです。</p>
-          <div class="debug-info">
-            <h3>デバッグ情報</h3>
-            <p>ステータス: <span id="debug-status">確認中...</span></p>
-            <p>Service Worker: <span id="sw-status">確認中...</span></p>
-            <button id="clear-cache" class="debug-button">キャッシュをクリア</button>
-          </div>
+        <!-- ここに情報フィードが表示されます -->
+        <div id="feed-container" class="feed-container">
+          <!-- 情報フィードのコンテンツはJavaScriptで動的に生成されます -->
         </div>
       </div>
     </div>
   </main>
   
   <script src="app.js"></script>
+  <script src="keyboard-feed.js"></script>
+  <script src="feed-ui.js"></script>
   <script>
     // Service Workerの登録
     if ('serviceWorker' in navigator) {
@@ -84,28 +81,22 @@
         });
     } else {
       console.warn('Service Workerはこのブラウザでサポートされていません');
-      document.getElementById('sw-status').textContent = '未サポート';
+      if (document.getElementById('sw-status')) {
+        document.getElementById('sw-status').textContent = '未サポート';
+      }
     }
     
-    // デバッグボタン
-    document.addEventListener('DOMContentLoaded', function() {
-      const clearCacheBtn = document.getElementById('clear-cache');
-      if (clearCacheBtn) {
-        clearCacheBtn.addEventListener('click', function() {
-          if ('caches' in window) {
-            caches.keys().then(function(names) {
-              for (let name of names) {
-                caches.delete(name);
-              }
-              alert('キャッシュをクリアしました。ページをリロードしてください。');
-            });
-          } else {
-            alert('このブラウザではキャッシュAPIがサポートされていません。');
-          }
-        });
-      }
+    // ページ読み込み完了時の処理
+    window.addEventListener('load', function() {
+      console.log('ページ読み込み完了');
       
-      document.getElementById('debug-status').textContent = 'ページ読み込み完了';
+      // 情報フィードの初期化
+      if (typeof FeedUI !== 'undefined') {
+        console.log('FeedUIの初期化を開始');
+        FeedUI.init('feed-container');
+      } else {
+        console.error('FeedUIモジュールが読み込まれていません');
+      }
     });
   </script>
 </body>
