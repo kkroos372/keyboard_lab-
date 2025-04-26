@@ -1,9 +1,9 @@
 /**
  * KeyboardLab Service Worker
- * バージョン: 1.0.1
+ * バージョン: 1.1.0 - 情報フィード機能対応
  */
 
-const CACHE_NAME = 'keyboardlab-v1.0.1';
+const CACHE_NAME = 'keyboardlab-v1.1.0';
 const DEBUG = true;
 
 // キャッシュするアセット
@@ -11,10 +11,14 @@ const ASSETS = [
   './',
   './index.html',
   './style.css',
+  './feed-style.css',
   './app.js',
+  './keyboard-feed.js',
+  './feed-ui.js',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './assets/placeholder.jpg'
 ];
 
 // デバッグログ
@@ -69,11 +73,9 @@ self.addEventListener('activate', event => {
 
 // フェッチリクエスト時
 self.addEventListener('fetch', event => {
-  logDebug(`フェッチリクエスト: ${event.request.url}`);
-  
   // ナビゲーションリクエストの処理
   if (event.request.mode === 'navigate') {
-    logDebug('ナビゲーションリクエスト');
+    logDebug(`ナビゲーションリクエスト: ${event.request.url}`);
     event.respondWith(
       fetch(event.request).catch(() => {
         logDebug('ナビゲーションリクエストオフライン - キャッシュされたindex.htmlを返します');
@@ -83,7 +85,32 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // APIリクエストやJSONファイルのリクエストは常にネットワークを優先（情報フィード用）
+  if (event.request.url.includes('_feed.json') || 
+      event.request.url.includes('/api/') || 
+      event.request.url.endsWith('.json')) {
+    logDebug(`API/JSONリクエスト: ${event.request.url}`);
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // レスポンスのクローンを作成してキャッシュに保存
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+          return response;
+        })
+        .catch(() => {
+          // オフラインの場合はキャッシュを試す
+          logDebug(`API/JSONリクエストオフライン - キャッシュを試行: ${event.request.url}`);
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
   // 通常のリクエスト - キャッシュファーストの戦略
+  logDebug(`通常リクエスト: ${event.request.url}`);
   event.respondWith(
     caches.match(event.request).then(response => {
       // キャッシュにヒットした場合
@@ -112,13 +139,16 @@ self.addEventListener('fetch', event => {
         })
         .catch(error => {
           console.error(`[ServiceWorker] フェッチエラー: ${error}`);
-          // ネットワークエラーの場合は適切なフォールバックを返す
-          if (event.request.url.endsWith('.png') || 
-              event.request.url.endsWith('.jpg') || 
-              event.request.url.endsWith('.jpeg')) {
-            // 画像リクエストの場合はプレースホルダーや何もしないことも可能
-            return new Response('', { status: 400, statusText: 'Image Not Found' });
+          // 画像リクエストの場合はプレースホルダー画像を返す
+          if (event.request.url.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
+            logDebug(`画像フェッチ失敗 - プレースホルダーを返します: ${event.request.url}`);
+            return caches.match('./assets/placeholder.jpg');
           }
+          // その他のリクエストはエラーを表示
+          return new Response('ネットワークエラー', {
+            status: 408,
+            headers: { 'Content-Type': 'text/plain' }
+          });
         });
     })
   );
@@ -134,10 +164,21 @@ self.addEventListener('message', event => {
     event.waitUntil(
       caches.delete(CACHE_NAME).then(() => {
         logDebug('キャッシュをクリアしました');
-        event.ports[0].postMessage({ result: 'success' });
+        if (event.ports && event.ports[0]) {
+          event.ports[0].postMessage({ result: 'success' });
+        }
       })
     );
   }
+  
+  // フィード更新のメッセージ
+  if (event.data && event.data.action === 'updateFeed') {
+    logDebug('フィード更新リクエスト受信');
+    // ここではバックグラウンド更新は実装しない（クライアントサイドで処理）
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ result: 'received' });
+    }
+  }
 });
 
-logDebug('Service Worker 初期化完了');
+logDebug('Service Worker 初期化完了 - 情報フィード対応版');
