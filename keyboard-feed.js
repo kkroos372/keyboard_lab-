@@ -1,7 +1,7 @@
 /**
  * キーボード情報フィード機能
  * PWA上で動作するキーボード関連情報収集モジュール
- * バージョン: 1.0.0
+ * バージョン: 1.0.1 - モックデータ内蔵版
  */
 
 // 情報フィードの名前空間
@@ -27,43 +27,43 @@ const KeyboardFeed = (() => {
     {
       id: 'novelkeys',
       name: 'NovelKeys',
-      url: 'novelkeys_feed.json',
+      url: 'novelkeys_feed',
       enabled: true,
       category: 'all'
     },
     {
       id: 'kbdfans',
       name: 'KBDfans Blog',
-      url: 'kbdfans_feed.json',
+      url: 'kbdfans_feed',
       enabled: true,
       category: 'all'
     },
     {
       id: 'switchjp',
       name: 'キースイッチ.jp',
-      url: 'switchjp_feed.json',
+      url: 'switchjp_feed',
       enabled: true,
       category: 'switch'
     },
     {
       id: 'yushakobo',
       name: '遊舎工房',
-      url: 'yushakobo_feed.json',
+      url: 'yushakobo_feed',
       enabled: true,
       category: 'keyboard'
     }
   ];
   
-  // モックデータフィード（実際のAPIや更新可能な静的JSONを使用する予定の代わり）
-  const MOCK_FEEDS = {
-    'novelkeys_feed.json': [
+  // モックデータ（JSONファイルを参照せず直接定義）
+  const MOCK_FEEDS_DATA = {
+    'novelkeys': [
       {
         id: 'nk_1',
         title: 'NK Cream スイッチ再入荷',
         date: '2025-04-12',
-        content: 'NovelKeysの人気スイッチ「NK Cream」が再入荷しました。オリジナルのPOMスイッチで、独特のサウンドと感触が特徴です。',
+        content: 'NovelKeysの人気スイッチ「NK Cream」が再入荷しました。オリジナルのPOMスイッチで、独特のサウンドと感触が特徴です。通常版に加えて、今回は工場で潤滑済みのバージョンも発売。キー音とスムーズな打鍵感のバランスを追求した人気モデルです。',
         url: 'https://novelkeys.com/products/cream-switches',
-        image: './assets/nk_cream.jpg',
+        image: './placeholder.png',
         category: 'switch',
         source: 'NovelKeys'
       },
@@ -71,45 +71,95 @@ const KeyboardFeed = (() => {
         id: 'nk_2',
         title: 'GMK Olivia++ グループバイ開始',
         date: '2025-04-10',
-        content: '人気のGMK Oliviaキーキャップセットの新バージョン「Olivia++」のグループバイが開始されました。',
+        content: '人気のGMK Oliviaキーキャップセットの新バージョン「Olivia++」のグループバイが開始されました。淡いピンクとダークグレーの組み合わせが特徴の人気カラーウェイで、今回はISO配列とErgodox用キーも追加されています。納期は2025年第4四半期の予定です。',
         url: 'https://novelkeys.com/products/gmk-olivia',
-        image: './assets/gmk_olivia.jpg',
+        image: './placeholder.png',
         category: 'keycap',
+        source: 'NovelKeys'
+      },
+      {
+        id: 'nk_3',
+        title: 'NK65 Superユーザー購入レビュー',
+        date: '2025-04-08',
+        content: '先日発売されたNK65 Superのユーザーレビューが多数投稿されています。ガスケットマウント、PCBマウントスタビライザー、QMK/VIA対応など機能面での評価が高く、特にPOM製プレートによる打鍵感が好評です。価格以上の価値があるという声が多数。',
+        url: 'https://novelkeys.com/collections/keyboards/products/nk65-super',
+        image: './placeholder.png',
+        category: 'keyboard',
         source: 'NovelKeys'
       }
     ],
-    'kbdfans_feed.json': [
+    'kbdfans': [
       {
         id: 'kbdfans_1',
         title: 'Tofu84 V2 発売開始',
         date: '2025-04-15',
-        content: '人気のTofu84キーボードの新バージョンが登場。ガスケットマウント方式を採用し、打鍵感が大幅に向上しています。',
+        content: '人気のTofu84キーボードの新バージョンが登場。ガスケットマウント方式を採用し、打鍵感が大幅に向上しています。アルミニウムとポリカーボネートの2種類のケースから選択可能で、ホットスワップPCBを標準装備。VIA対応で簡単にキーマップのカスタマイズが可能です。',
         url: 'https://kbdfans.com/products/tofu84-v2',
-        image: './assets/tofu84v2.jpg',
+        image: './placeholder.png',
+        category: 'keyboard',
+        source: 'KBDfans'
+      },
+      {
+        id: 'kbdfans_2',
+        title: 'OSA Marrs Green キーキャップセット',
+        date: '2025-04-12',
+        content: 'KBDfansから新しいOSAプロファイルのキーキャップセット「Marrs Green」が発売されました。OSAプロファイルはSAの高さとOEMのような形状を組み合わせた独特のプロファイルで、PBT素材の心地よい質感が特徴です。落ち着いたグリーンのカラーリングがデスク環境に上品なアクセントを加えます。',
+        url: 'https://kbdfans.com/products/osa-marrs-green',
+        image: './placeholder.png',
+        category: 'keycap',
+        source: 'KBDfans'
+      },
+      {
+        id: 'kbdfans_3',
+        title: 'D60 Lite 新色追加',
+        date: '2025-04-05',
+        content: 'コストパフォーマンスに優れたD60 Liteキーボードキットに新色「Matcha」と「Lavender」が追加されました。半透明のPC素材ケースに淡い色味を加えたデザインで、LEDとの相性も抜群です。お求めやすい価格はそのままに、カラーバリエーションが充実しました。',
+        url: 'https://kbdfans.com/products/d60-lite',
+        image: './placeholder.png',
         category: 'keyboard',
         source: 'KBDfans'
       }
     ],
-    'switchjp_feed.json': [
+    'switchjp': [
       {
         id: 'sjp_1',
         title: 'Boba U4T スイッチレビュー',
         date: '2025-04-20',
-        content: 'タクタイルスイッチの新定番「Boba U4T」の詳細レビュー。強いタクタイル感と特徴的なサウンドが魅力です。',
+        content: 'タクタイルスイッチの新定番「Boba U4T」の詳細レビュー。強いタクタイル感と特徴的なサウンドが魅力です。デュロク・シアースタイルのトップハウジングとガトロンスタイルのボトムハウジングを組み合わせた独自構造により、深みのあるサウンドを実現しています。最近のメカニカルキーボードでもっとも人気のタクタイルスイッチの一つといえるでしょう。',
         url: 'https://keyswitch.jp/review/bobau4t',
-        image: './assets/boba_u4t.jpg',
+        image: './placeholder.png',
+        category: 'switch',
+        source: 'キースイッチ.jp'
+      },
+      {
+        id: 'sjp_2',
+        title: 'リニア vs タクタイル vs クリッキー - スイッチタイプ徹底比較',
+        date: '2025-04-15',
+        content: 'メカニカルスイッチの3大タイプであるリニア、タクタイル、クリッキーの特徴と違いを徹底解説。タイピング、ゲーミング、プログラミングなど用途別のおすすめも紹介しています。初めてのメカニカルキーボードを検討している方は必見の内容です。',
+        url: 'https://keyswitch.jp/guide/switchtypes',
+        image: './placeholder.png',
+        category: 'switch',
+        source: 'キースイッチ.jp'
+      },
+      {
+        id: 'sjp_3',
+        title: '静音スイッチおすすめランキング2025',
+        date: '2025-04-08',
+        content: 'オフィスや共有スペースでも使いやすい静音スイッチのおすすめランキングを発表。Boba U4、Healio、Silent Alpacaなど人気の静音スイッチを実際の使用感、静音性、打鍵感などの観点から比較評価しました。動画による打鍵音の比較も掲載しています。',
+        url: 'https://keyswitch.jp/ranking/silent2025',
+        image: './placeholder.png',
         category: 'switch',
         source: 'キースイッチ.jp'
       }
     ],
-    'yushakobo_feed.json': [
+    'yushakobo': [
       {
         id: 'yushakobo_1',
         title: 'Corne Cherry v4 発表',
         date: '2025-04-22',
-        content: '人気の分割キーボード「Corne」の最新バージョンが発表されました。ワイヤレス接続対応が最大の特徴です。',
+        content: '人気の分割キーボード「Corne」の最新バージョンが発表されました。ワイヤレス接続対応が最大の特徴です。nice!nano v2コントローラーを使用することで、Bluetooth接続が可能になりました。また、バッテリーホルダーも基板に内蔵されており、110mAhのリチウムイオンバッテリーを左右それぞれに搭載できます。Cherry MXスイッチとChoc V1スイッチの両方に対応したオールラウンダーモデルになっています。',
         url: 'https://yushakobo.jp/products/corne-cherry-v4',
-        image: './assets/corne_v4.jpg',
+        image: './placeholder.png',
         category: 'keyboard',
         source: '遊舎工房'
       },
@@ -117,17 +167,37 @@ const KeyboardFeed = (() => {
         id: 'yushakobo_2',
         title: 'Choc Pro スイッチ入荷',
         date: '2025-04-18',
-        content: '薄型キーボード向けの新しいKailh Choc Proスイッチが入荷しました。従来のChocより改良されたデザインです。',
+        content: '薄型キーボード向けの新しいKailh Choc Proスイッチが入荷しました。従来のChocより改良されたデザインで、よりスムーズな打鍵感が特徴です。従来のChocと同じ高さを維持しながらも、MXスタイルのステムを採用しており、一般的なMXキーキャップが使用可能になりました。赤軸（リニア）、茶軸（タクタイル）、白軸（クリッキー）の3種類が揃っています。',
         url: 'https://yushakobo.jp/products/kailh-choc-pro',
-        image: './assets/choc_pro.jpg',
+        image: './placeholder.png',
         category: 'switch',
+        source: '遊舎工房'
+      },
+      {
+        id: 'yushakobo_3',
+        title: '自作キーボード入門ワークショップ 5月開催決定',
+        date: '2025-04-16',
+        content: '初心者向けの自作キーボードワークショップが2025年5月15日に開催されます。Crkbd（Corne）キーボードのビルドを一から学べるハンズオン形式で、はんだ付け初心者でも安心して参加できます。工具はすべて貸し出し、キットと必要な部品は参加費に含まれています。オンライン参加も可能です。',
+        url: 'https://yushakobo.jp/workshop/202505',
+        image: './placeholder.png',
+        category: 'keyboard',
+        source: '遊舎工房'
+      },
+      {
+        id: 'yushakobo_4',
+        title: 'オリジナルデスクマット「和紙」シリーズ発売',
+        date: '2025-04-10',
+        content: '日本の伝統的な和紙をモチーフにしたデスクマットシリーズが発売開始。「雲竜」「あさぎ」「墨流し」の3種類のデザインで、900x400mmのサイズ。表面はスムーズな操作感、裏面は滑り止め加工が施されており、キーボードにぴったりのアクセントになります。',
+        url: 'https://yushakobo.jp/products/deskmats-washi',
+        image: './placeholder.png',
+        category: 'deskmat',
         source: '遊舎工房'
       }
     ]
   };
   
-  // プレースホルダー画像パス
-  const DEFAULT_IMAGE = './assets/placeholder.jpg';
+  // プレースホルダー画像パス（rootディレクトリに置く）
+  const DEFAULT_IMAGE = './placeholder.png';
   
   /**
    * 初期化処理
@@ -138,6 +208,9 @@ const KeyboardFeed = (() => {
     
     // ソース情報の読み込み
     _loadSources();
+    
+    // フィードアイテムの読み込み
+    _loadFeedItems();
     
     // 保存済みアイテムの読み込み
     _loadSavedItems();
@@ -316,13 +389,12 @@ const KeyboardFeed = (() => {
   function _fetchSource(source) {
     console.log(`KeyboardFeed: ${source.name} からフェッチ中...`);
     
-    // 注意: 実際の実装では、ここでソースURLからデータを取得します
-    // 今回はモックデータを使用
+    // モックデータを直接使用
     return new Promise((resolve) => {
-      // モックデータの使用（実際のアプリでは実際のフェッチリクエストになります）
       setTimeout(() => {
-        if (MOCK_FEEDS[source.url]) {
-          const items = MOCK_FEEDS[source.url];
+        const sourceId = source.id;
+        if (MOCK_FEEDS_DATA[sourceId]) {
+          const items = MOCK_FEEDS_DATA[sourceId];
           console.log(`KeyboardFeed: ${source.name} から ${items.length}個のアイテムを取得`);
           resolve(items);
         } else {
