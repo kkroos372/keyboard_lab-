@@ -6,112 +6,107 @@
   <title>KeyboardLab</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
-  <!-- iOS用メタタグ -->
+  <meta name="theme-color" content="#4f46e5">
+  <!-- iOS用設定 -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="KeyboardLab">
   <link rel="apple-touch-icon" href="icon-192.png">
+  <!-- デバッグ用追加スクリプト -->
+  <script>
+    console.log('HTML読み込み開始');
+  </script>
 </head>
 <body>
-  <h1>KeyboardLab</h1>
-  <!-- アプリのコンテンツ -->
+  <header>
+    <h1>KeyboardLab</h1>
+    <p class="version">デバッグ版 v1.0.1</p>
+  </header>
+  
+  <main>
+    <div class="tabs">
+      <button class="tab active" data-tab="keyboards">キーボード</button>
+      <button class="tab" data-tab="switches">スイッチ</button>
+      <button class="tab" data-tab="keycaps">キーキャップ</button>
+      <button class="tab" data-tab="info">情報</button>
+    </div>
+    
+    <div class="content">
+      <div id="keyboards" class="tab-content active">
+        <div class="empty-state">
+          <p>キーボードがまだ登録されていません</p>
+          <button class="add-button">追加する</button>
+        </div>
+      </div>
+      
+      <div id="switches" class="tab-content">
+        <div class="empty-state">
+          <p>スイッチがまだ登録されていません</p>
+          <button class="add-button">追加する</button>
+        </div>
+      </div>
+      
+      <div id="keycaps" class="tab-content">
+        <div class="empty-state">
+          <p>キーキャップがまだ登録されていません</p>
+          <button class="add-button">追加する</button>
+        </div>
+      </div>
+      
+      <div id="info" class="tab-content">
+        <div class="info-content">
+          <h2>KeyboardLab</h2>
+          <p>分割キーボード・キースイッチ・キーキャップを管理するためのPWAアプリです。</p>
+          <div class="debug-info">
+            <h3>デバッグ情報</h3>
+            <p>ステータス: <span id="debug-status">確認中...</span></p>
+            <p>Service Worker: <span id="sw-status">確認中...</span></p>
+            <button id="clear-cache" class="debug-button">キャッシュをクリア</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
   
   <script src="app.js"></script>
   <script>
     // Service Workerの登録
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/keyboardlab/sw.js')
-        .then(reg => console.log('Service Worker registered', reg))
-        .catch(err => console.error('Service Worker registration failed', err));
+      console.log('Service Worker登録を試みています...');
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => {
+          console.log('Service Worker登録成功:', reg.scope);
+          document.getElementById('sw-status').textContent = '登録済み';
+        })
+        .catch(err => {
+          console.error('Service Worker登録失敗:', err);
+          document.getElementById('sw-status').textContent = '登録失敗';
+        });
+    } else {
+      console.warn('Service Workerはこのブラウザでサポートされていません');
+      document.getElementById('sw-status').textContent = '未サポート';
     }
+    
+    // デバッグボタン
+    document.addEventListener('DOMContentLoaded', function() {
+      const clearCacheBtn = document.getElementById('clear-cache');
+      if (clearCacheBtn) {
+        clearCacheBtn.addEventListener('click', function() {
+          if ('caches' in window) {
+            caches.keys().then(function(names) {
+              for (let name of names) {
+                caches.delete(name);
+              }
+              alert('キャッシュをクリアしました。ページをリロードしてください。');
+            });
+          } else {
+            alert('このブラウザではキャッシュAPIがサポートされていません。');
+          }
+        });
+      }
+      
+      document.getElementById('debug-status').textContent = 'ページ読み込み完了';
+    });
   </script>
 </body>
 </html>
-```
-
-### 2. マニフェストファイル (manifest.json)
-```json
-{
-  "name": "KeyboardLab",
-  "short_name": "KeyboardLab",
-  "start_url": "/keyboardlab/index.html",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
-  "icons": [
-    {
-      "src": "/keyboardlab/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/keyboardlab/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
-}
-```
-
-### 3. Service Workerファイル (sw.js)
-```javascript
-const CACHE_NAME = 'keyboardlab-v1';
-const ASSETS = [
-  '/keyboardlab/',
-  '/keyboardlab/index.html',
-  '/keyboardlab/style.css',
-  '/keyboardlab/app.js',
-  '/keyboardlab/manifest.json',
-  '/keyboardlab/icon-192.png',
-  '/keyboardlab/icon-512.png'
-];
-
-// キャッシュのインストール
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ASSETS))
-      .then(() => self.skipWaiting())
-  );
-});
-
-// 古いキャッシュの削除
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keyList => {
-      return Promise.all(
-        keyList.map(key => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
-  );
-  return self.clients.claim();
-});
-
-// ネットワークリクエストの処理
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      // キャッシュがあればそれを返す
-      if (response) {
-        return response;
-      }
-      // なければネットワークから取得
-      return fetch(event.request).then(response => {
-        // レスポンスが有効でなければそのまま返す
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
-        }
-        // 有効なレスポンスはキャッシュに保存してから返す
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, responseToCache);
-        });
-        return response;
-      });
-    })
-  );
-});
