@@ -1,4 +1,4 @@
-    * {
+* {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -24,8 +24,16 @@ h1 {
   font-size: 1.5rem;
 }
 
+.version {
+  font-size: 0.7rem;
+  opacity: 0.8;
+  margin-top: 0.2rem;
+}
+
 main {
   padding: 1rem;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .tabs {
@@ -45,6 +53,7 @@ main {
   font-size: 0.9rem;
   border-radius: 5px;
   cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .tab.active {
@@ -54,6 +63,10 @@ main {
 
 .tab-content {
   display: none;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  min-height: 300px;
 }
 
 .tab-content.active {
@@ -63,9 +76,6 @@ main {
 .empty-state {
   text-align: center;
   padding: 3rem 1rem;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .empty-state p {
@@ -81,4 +91,100 @@ main {
   border-radius: 5px;
   font-size: 0.9rem;
   cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.add-button:hover {
+  background-color: #4338ca;
+}
+
+/* 情報タブ用スタイル */
+.info-content {
+  padding: 1.5rem;
+}
+
+.info-content h2 {
+  font-size: 1.3rem;
+  margin-bottom: 0.8rem;
+  color: #4f46e5;
+}
+
+.info-content p {
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+/* デバッグ情報用スタイル */
+.debug-info {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: #f0f0ff;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.debug-info h3 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.debug-button {
+  background-color: #ff5757;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  cursor: pointer;
+}
+
+.debug-button:hover {
+  background-color: #e04848;
+}
+
+/* 各タブコンテンツ内の項目カード用スタイル（将来拡張用） */
+.item-card {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.item-card .item-image {
+  width: 60px;
+  height: 60px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  margin-right: 1rem;
+}
+
+.item-card .item-details {
+  flex: 1;
+}
+
+.item-card h3 {
+  font-size: 1rem;
+  margin-bottom: 0.3rem;
+}
+
+.item-card .item-meta {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 600px) {
+  .tabs {
+    flex-wrap: wrap;
+  }
+  
+  .tab {
+    flex: 1 0 40%;
+    margin: 0.2rem;
+    text-align: center;
+  }
 }
