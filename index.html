@@ -17,6 +17,10 @@
   <!-- デバッグ用追加スクリプト -->
   <script>
     console.log('HTML読み込み開始');
+    // グローバルエラーハンドラーを設定
+    window.addEventListener('error', function(event) {
+      console.error('グローバルエラー:', event.error);
+    });
   </script>
 </head>
 <body>
@@ -59,19 +63,22 @@
         <!-- ここに情報フィードが表示されます -->
         <div id="feed-container" class="feed-container">
           <!-- 情報フィードのコンテンツはJavaScriptで動的に生成されます -->
+          <div id="feed-loading-placeholder" style="text-align: center; padding: 2rem;">
+            <p>情報フィードを読み込み中...</p>
+          </div>
         </div>
       </div>
     </div>
   </main>
   
-  <!-- アプリのコアスクリプト -->
-  <script src="app.js"></script>
-  
   <!-- 情報フィード用のスクリプト - 依存関係の順番に注意 -->
   <script src="keyboard-feed.js"></script>
   <script src="feed-ui.js"></script>
   
-  <!-- サービスワーカーとアプリ初期化 -->
+  <!-- アプリのコアスクリプト（最後に読み込む） -->
+  <script src="app.js"></script>
+  
+  <!-- サービスワーカーとエラー処理 -->
   <script>
     // Service Workerの登録
     if ('serviceWorker' in navigator) {
@@ -79,21 +86,10 @@
       navigator.serviceWorker.register('./sw.js')
         .then(reg => {
           console.log('Service Worker登録成功:', reg.scope);
-          if (document.getElementById('sw-status')) {
-            document.getElementById('sw-status').textContent = '登録済み';
-          }
         })
         .catch(err => {
           console.error('Service Worker登録失敗:', err);
-          if (document.getElementById('sw-status')) {
-            document.getElementById('sw-status').textContent = '登録失敗';
-          }
         });
-    } else {
-      console.warn('Service Workerはこのブラウザでサポートされていません');
-      if (document.getElementById('sw-status')) {
-        document.getElementById('sw-status').textContent = '未サポート';
-      }
     }
     
     // ページ読み込み完了時の処理
@@ -104,13 +100,20 @@
       console.log('KeyboardFeedモジュール:', typeof KeyboardFeed !== 'undefined' ? '読み込み済み' : '未読み込み');
       console.log('FeedUIモジュール:', typeof FeedUI !== 'undefined' ? '読み込み済み' : '未読み込み');
       
-      // 必要に応じてフィードUIの初期化を手動で行う
-      if (typeof FeedUI !== 'undefined' && typeof KeyboardFeed !== 'undefined') {
-        const feedContainer = document.getElementById('feed-container');
-        if (feedContainer) {
-          console.log('フィードUIを手動で初期化します');
-          setTimeout(() => FeedUI.init('feed-container'), 100);
-        }
+      // 初期化エラーのチェック
+      if (document.getElementById('feed-loading-placeholder')) {
+        setTimeout(function() {
+          if (document.getElementById('feed-loading-placeholder')) {
+            console.log('フィードが初期化されていません。再試行します。');
+            try {
+              if (typeof FeedUI !== 'undefined') {
+                FeedUI.init('feed-container');
+              }
+            } catch (e) {
+              console.error('フィード初期化エラー:', e);
+            }
+          }
+        }, 2000);
       }
     });
   </script>
