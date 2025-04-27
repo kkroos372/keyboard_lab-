@@ -1,7 +1,7 @@
 /**
  * キーボード情報フィードUI
  * KeyboardLabアプリのフィード表示UI実装
- * バージョン: 2.0.1 - 画面表示修正とエラーハンドリング強化
+ * バージョン: 2.0.3 - 画像表示とリンク問題修正
  */
 
 const FeedUI = (() => {
@@ -12,6 +12,9 @@ const FeedUI = (() => {
   let _isLoading = false;
   let _savedOnly = false;
   let _searchQuery = ''; // 検索クエリを保持する変数
+  
+  // デフォルトのプレースホルダー画像
+  const DEFAULT_IMAGE = './assets/placeholder.jpg';
   
   // DOM要素の参照
   const DOM = {
@@ -54,10 +57,30 @@ const FeedUI = (() => {
       return;
     }
     
+    // 必要な画像ファイルの事前読み込み
+    _preloadImages();
+    
     // 初期データの表示
     _renderItems();
     
     console.log('FeedUI: 初期化完了');
+  }
+  
+  /**
+   * 画像を事前読み込み
+   * @private
+   */
+  function _preloadImages() {
+    // プレースホルダー画像を事前読み込み
+    const preloadImage = new Image();
+    preloadImage.src = DEFAULT_IMAGE;
+    
+    // カテゴリ別画像も読み込み
+    const categories = ['keyboard', 'switch', 'keycap', 'deskmat'];
+    categories.forEach(category => {
+      const img = new Image();
+      img.src = `./assets/${category}.jpg`;
+    });
   }
   
   /**
@@ -178,6 +201,45 @@ const FeedUI = (() => {
   }
   
   /**
+   * 画像URLを検証して有効なURLを返す
+   * @private
+   * @param {string} imageUrl 検証する画像URL
+   * @param {string} category アイテムのカテゴリ
+   * @returns {string} 有効な画像URL
+   */
+  function _validateImageUrl(imageUrl, category) {
+    if (!imageUrl || imageUrl === 'undefined' || imageUrl === 'null') {
+      // カテゴリに応じたプレースホルダー画像を返す
+      switch (category) {
+        case 'keyboard':
+          return './assets/keyboard.jpg';
+        case 'switch':
+          return './assets/switch.jpg';
+        case 'keycap':
+          return './assets/keycap.jpg';
+        case 'deskmat':
+          return './assets/deskmat.jpg';
+        default:
+          return DEFAULT_IMAGE;
+      }
+    }
+    return imageUrl;
+  }
+  
+  /**
+   * リンクURLを検証して有効なURLを返す
+   * @private
+   * @param {string} url 検証するURL
+   * @returns {string} 有効なURL
+   */
+  function _validateUrl(url) {
+    if (!url || url === '#' || url === 'undefined' || url === 'null') {
+      return 'https://www.mechanical-keyboard.org/';
+    }
+    return url;
+  }
+  
+  /**
    * アクティブなカテゴリーを設定
    * @private
    * @param {string} category カテゴリー名
@@ -268,7 +330,7 @@ const FeedUI = (() => {
     if (!item) return '';
     
     const formattedDate = _formatDate(item.date);
-    const imageUrl = item.image || './assets/placeholder.jpg';
+    const imageUrl = _validateImageUrl(item.image, item.category);
     const savedClass = item.saved ? 'saved' : '';
     
     let categoryLabel = '';
@@ -301,7 +363,7 @@ const FeedUI = (() => {
     return `
       <div class="feed-item ${savedClass}" data-id="${item.id}">
         <div class="feed-item-image">
-          <img src="${imageUrl}" alt="${title}" onerror="this.src='./assets/placeholder.jpg'">
+          <img src="${imageUrl}" alt="${title}" onerror="this.src='${DEFAULT_IMAGE}'">
         </div>
         <div class="feed-item-content">
           <div class="feed-item-header">
@@ -353,7 +415,8 @@ const FeedUI = (() => {
     _setViewMode('detail');
     
     const formattedDate = _formatDate(item.date);
-    const imageUrl = item.image || './assets/placeholder.jpg';
+    const imageUrl = _validateImageUrl(item.image, item.category);
+    const itemUrl = _validateUrl(item.url);
     
     let categoryLabel = '';
     switch (item.category) {
@@ -394,7 +457,7 @@ const FeedUI = (() => {
       </div>
       
       <div class="feed-detail-image">
-        <img src="${imageUrl}" alt="${item.title}" onerror="this.src='./assets/placeholder.jpg'">
+        <img src="${imageUrl}" alt="${item.title}" onerror="this.src='${DEFAULT_IMAGE}'">
       </div>
       
       <div class="feed-detail-meta">
@@ -409,7 +472,7 @@ const FeedUI = (() => {
         <p>${content}</p>
       </div>
       
-      <a href="${item.url || '#'}" target="_blank" rel="noopener noreferrer" class="feed-detail-link">
+      <a href="${itemUrl}" target="_blank" rel="noopener noreferrer" class="feed-detail-link">
         元の記事を読む
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
       </a>
@@ -704,7 +767,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
       console.log('FeedUI: 初期化を開始します');
       FeedUI.init('feed-container');
-    }, 200); // 少し遅延させてKeyboardFeedの読み込みを確実にする
+    }, 300); // 少し遅延させてKeyboardFeedの読み込みを確実にする
   } else {
     console.log('FeedUI: infoタブが見つかりません');
   }
