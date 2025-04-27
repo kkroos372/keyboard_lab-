@@ -1,73 +1,9 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KeyboardLab</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- 情報フィード用のスタイルシートを追加 -->
-  <link rel="stylesheet" href="feed-style.css">
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#4f46e5">
-  <!-- iOS用設定 -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="KeyboardLab">
-  <link rel="apple-touch-icon" href="icon-192.png">
-  <!-- デバッグ用追加スクリプト -->
-  <script>
-    console.log('HTML読み込み開始');
-  </script>
-</head>
-<body>
-  <header>
-    <h1>KeyboardLab</h1>
-    <p class="version">バージョン 1.1.0</p>
-  </header>
+<script src="app.js"></script>
   
-  <main>
-    <div class="tabs">
-      <button class="tab active" data-tab="keyboards">キーボード</button>
-      <button class="tab" data-tab="switches">スイッチ</button>
-      <button class="tab" data-tab="keycaps">キーキャップ</button>
-      <button class="tab" data-tab="info">情報</button>
-    </div>
-    
-    <div class="content">
-      <div id="keyboards" class="tab-content active">
-        <div class="empty-state">
-          <p>キーボードがまだ登録されていません</p>
-          <button class="add-button">追加する</button>
-        </div>
-      </div>
-      
-      <div id="switches" class="tab-content">
-        <div class="empty-state">
-          <p>スイッチがまだ登録されていません</p>
-          <button class="add-button">追加する</button>
-        </div>
-      </div>
-      
-      <div id="keycaps" class="tab-content">
-        <div class="empty-state">
-          <p>キーキャップがまだ登録されていません</p>
-          <button class="add-button">追加する</button>
-        </div>
-      </div>
-      
-      <div id="info" class="tab-content">
-        <!-- ここに情報フィードが表示されます -->
-        <div id="feed-container" class="feed-container">
-          <!-- 情報フィードのコンテンツはJavaScriptで動的に生成されます -->
-        </div>
-      </div>
-    </div>
-  </main>
-  
-  <script src="app.js"></script>
-  <!-- 情報フィード用のスクリプトを追加 -->
+  <!-- 情報フィード用のスクリプト - 依存関係の順番に注意 -->
   <script src="keyboard-feed.js"></script>
   <script src="feed-ui.js"></script>
+  
   <script>
     // Service Workerの登録
     if ('serviceWorker' in navigator) {
@@ -96,17 +32,16 @@
     window.addEventListener('load', function() {
       console.log('ページ読み込み完了');
       
-      // 情報フィードの初期化 - feed-ui.jsが読み込まれていることを確認
-      if (typeof FeedUI !== 'undefined') {
-        console.log('FeedUIの初期化を開始');
-        // feed-containerが存在する場合のみ初期化を実行
-        if (document.getElementById('feed-container')) {
-          FeedUI.init('feed-container');
+      // スクリプトが正しく読み込まれているか確認
+      console.log('KeyboardFeedモジュール:', typeof KeyboardFeed !== 'undefined' ? '読み込み済み' : '未読み込み');
+      console.log('FeedUIモジュール:', typeof FeedUI !== 'undefined' ? '読み込み済み' : '未読み込み');
+      
+      // 必要に応じてフィードUIの初期化を手動で行う
+      if (typeof FeedUI !== 'undefined' && typeof KeyboardFeed !== 'undefined') {
+        const feedContainer = document.getElementById('feed-container');
+        if (feedContainer) {
+          console.log('フィードUIを手動で初期化します');
+          setTimeout(() => FeedUI.init('feed-container'), 100);
         }
-      } else {
-        console.error('FeedUIモジュールが読み込まれていません');
       }
     });
-  </script>
-</body>
-</html>
