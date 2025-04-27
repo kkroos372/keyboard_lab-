@@ -1,6 +1,6 @@
 /**
  * KeyboardLab アプリケーションメインスクリプト
- * バージョン: 1.0.1 (デバッグ強化版)
+ * バージョン: 2.0.0 (エラー修正および検索機能対応版)
  */
 
 // アプリ初期化ログ
@@ -24,9 +24,6 @@ function initApp() {
     
     // 追加ボタン
     initAddButtons();
-    
-    // ローカルストレージからデータの読み込み
-    loadData();
     
     // デバッグ情報の更新
     updateDebugInfo();
@@ -70,6 +67,21 @@ function initTabs() {
       if (targetContent) {
         targetContent.classList.add('active');
         console.log(`app.js: タブコンテンツ表示: ${tabId}`);
+        
+        // 情報タブが選択された場合、フィードUIの自動初期化をトリガー
+        if (tabId === 'info' && typeof FeedUI !== 'undefined') {
+          console.log('app.js: 情報タブ選択 - フィードUI初期化トリガー');
+          const feedContainer = document.getElementById('feed-container');
+          if (feedContainer && typeof FeedUI.init === 'function') {
+            setTimeout(() => {
+              try {
+                FeedUI.init('feed-container');
+              } catch (error) {
+                console.error('app.js: フィードUI初期化エラー:', error);
+              }
+            }, 100);
+          }
+        }
       } else {
         console.error(`app.js: 対応するタブコンテンツが見つかりません: ${tabId}`);
       }
@@ -96,26 +108,6 @@ function initAddButtons() {
   console.log('app.js: 追加ボタン初期化完了');
 }
 
-// データ読み込み（将来的な実装）
-function loadData() {
-  console.log('app.js: データ読み込み試行中...');
-  
-  // IndexedDBやLocalStorageからのデータ読み込み（今後実装予定）
-  try {
-    // ローカルストレージからの読み込みテスト
-    const testData = localStorage.getItem('keyboardlab-test');
-    console.log(`app.js: テストデータ読み込み: ${testData || 'データなし'}`);
-    
-    if (!testData) {
-      // テスト用データの保存
-      localStorage.setItem('keyboardlab-test', 'テストデータ保存成功 ' + new Date().toISOString());
-      console.log('app.js: テストデータを保存しました');
-    }
-  } catch (error) {
-    console.error('app.js: ストレージアクセスエラー:', error);
-  }
-}
-
 // デバッグ情報の更新
 function updateDebugInfo() {
   const debugStatus = document.getElementById('debug-status');
@@ -139,10 +131,11 @@ function updateDebugInfo() {
   }
 }
 
-// DOMContentLoadedイベントリスナー
+// DOMContentLoadedイベントリスナー - 早めに初期化を行う
 document.addEventListener('DOMContentLoaded', function() {
   console.log('app.js: DOMContentLoaded イベント発火');
-  initApp();
+  // 少し遅延させて初期化（他のスクリプトが読み込まれるのを待つ）
+  setTimeout(initApp, 10);
 });
 
 // ページロード完了時のバックアップリスナー
