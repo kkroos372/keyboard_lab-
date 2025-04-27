@@ -1,6 +1,6 @@
 /**
  * 情報フィードのスタイル定義
- * バージョン: 1.0.0
+ * バージョン: 1.1.0 - 検索機能追加
  */
 
 /* フィードコンテナ */
@@ -72,6 +72,72 @@
 
 .feed-saved-toggle input {
   margin: 0;
+}
+
+/* 検索ボックス（新規追加） */
+.feed-search {
+  padding: 0.5rem 1rem;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #eee;
+}
+
+.feed-search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.feed-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  color: #6b7280;
+}
+
+.feed-search-input {
+  width: 100%;
+  padding: 0.5rem 2.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #1f2937;
+  background-color: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.feed-search-input:focus {
+  outline: none;
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.feed-search-clear {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  color: #9ca3af;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.feed-search-clear:hover {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+/* 検索結果ハイライト（新規追加） */
+.feed-search-highlight {
+  background-color: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
+  font-weight: 500;
+  border-radius: 2px;
+  padding: 0 1px;
 }
 
 /* タブナビゲーション */
