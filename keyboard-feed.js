@@ -1,7 +1,7 @@
 /**
  * キーボード情報フィード機能
  * PWA上で動作するキーボード関連情報収集モジュール
- * バージョン: 2.0.0 - シンプル化、エラー修正、検索対応版
+ * バージョン: 2.0.1 - 更新時エラー修正
  */
 
 // 情報フィードの名前空間
@@ -125,6 +125,32 @@ const KeyboardFeed = (() => {
     }
   ];
   
+  // 追加モックデータ（更新時に追加される新しいアイテム）
+  const UPDATE_ITEMS = [
+    {
+      id: 'nk_update_1',
+      title: 'NK Silk Yellow V2 発売',
+      date: '2025-04-25',
+      content: 'NovelKeysから新しいリニアスイッチ「Silk Yellow V2」が発売されました。従来のSilk Yellowの改良版で、より滑らかな打鍵感を実現。工場で潤滑済みで、すぐに快適なタイピング体験が得られます。',
+      url: 'https://novelkeys.com/products/silk-yellow-v2',
+      image: './placeholder.png',
+      category: 'switch',
+      source: 'NovelKeys',
+      saved: false
+    },
+    {
+      id: 'kbdfans_update_1',
+      title: 'KBD67 Lite R4 予約開始',
+      date: '2025-04-23',
+      content: '人気のエントリーモデルKBD67 LiteのR4バージョンの予約が開始されました。新色として「マットブラック」と「フロストホワイト」が追加され、USBコネクタがType-Cに変更されています。',
+      url: 'https://kbdfans.com/products/kbd67-lite-r4',
+      image: './placeholder.png',
+      category: 'keyboard',
+      source: 'KBDfans',
+      saved: false
+    }
+  ];
+  
   // ローカルストレージのキー
   const STORAGE_KEY = 'kblab_saved_items';
   
@@ -167,7 +193,7 @@ const KeyboardFeed = (() => {
   function _init() {
     console.log('KeyboardFeed: 初期化中...');
     
-    // モックデータをコピー
+    // 初期データをコピー
     _feedItems = [...MOCK_ITEMS];
     
     // 保存済みアイテムの読み込み
@@ -187,7 +213,17 @@ const KeyboardFeed = (() => {
    * @returns {Array} フィルタリングされたアイテムの配列
    */
   function getItems(category = 'all', savedOnly = false) {
+    // 引数の型をチェック
+    if (typeof category !== 'string') {
+      category = 'all';
+    }
+    if (typeof savedOnly !== 'boolean') {
+      savedOnly = false;
+    }
+    
     return _feedItems.filter(item => {
+      if (!item) return false;
+      
       const categoryMatch = category === 'all' || item.category === category;
       const savedMatch = !savedOnly || item.saved;
       return categoryMatch && savedMatch;
@@ -203,6 +239,11 @@ const KeyboardFeed = (() => {
    * @returns {Array} 検索結果のアイテム配列
    */
   function searchItems(query, category = 'all', savedOnly = false) {
+    // 引数の型をチェック
+    if (typeof query !== 'string') {
+      query = '';
+    }
+    
     if (!query) {
       return getItems(category, savedOnly);
     }
@@ -210,6 +251,8 @@ const KeyboardFeed = (() => {
     const lowercaseQuery = query.toLowerCase();
     
     return getItems(category, savedOnly).filter(item => {
+      if (!item) return false;
+      
       return (
         (item.title && item.title.toLowerCase().includes(lowercaseQuery)) ||
         (item.content && item.content.toLowerCase().includes(lowercaseQuery)) ||
@@ -226,21 +269,27 @@ const KeyboardFeed = (() => {
    * @returns {boolean} 新しい保存状態
    */
   function toggleSaveItem(itemId) {
-    const item = _feedItems.find(item => item.id === itemId);
+    if (!itemId) {
+      throw new Error('itemIdが指定されていません');
+    }
+    
+    const item = _feedItems.find(item => item && item.id === itemId);
     if (item) {
       item.saved = !item.saved;
       _saveSavedItems();
       return item.saved;
     }
-    return false;
+    
+    throw new Error(`ID: ${itemId} のアイテムが見つかりません`);
   }
   
   /**
-   * フィードを更新（デモではモックデータを使用）
+   * フィードを更新（デモでは新しいモックデータを追加）
    * @public
    * @returns {Promise} 更新結果のPromise
    */
   function fetchFeeds() {
+    // すでに読み込み中の場合は何もしない
     if (_isLoading) {
       console.log('KeyboardFeed: 既に読み込み中です');
       return Promise.resolve(false);
@@ -249,15 +298,43 @@ const KeyboardFeed = (() => {
     _isLoading = true;
     console.log('KeyboardFeed: フィード更新開始');
     
-    // シミュレートされた非同期処理（1秒の遅延）
+    // 非同期処理（実際のネットワークリクエストをシミュレート）
     return new Promise((resolve) => {
       setTimeout(() => {
-        _lastUpdated = new Date();
-        _isLoading = false;
-        console.log('KeyboardFeed: フィード更新完了');
-        
-        // 更新の成功を返す
-        resolve(true);
+        try {
+          // 既存の保存状態を控える
+          const savedIds = _feedItems
+            .filter(item => item && item.saved)
+            .map(item => item.id);
+            
+          // 新しいアイテムをコピー
+          const newItems = [...UPDATE_ITEMS].map(item => ({...item}));
+          
+          // 新しいアイテムを追加
+          _feedItems = [...newItems, ..._feedItems];
+          
+          // 最終更新日時を更新
+          _lastUpdated = new Date();
+          
+          // 保存状態を復元
+          _feedItems.forEach(item => {
+            if (item) {
+              item.saved = savedIds.includes(item.id);
+            }
+          });
+          
+          console.log(`KeyboardFeed: ${newItems.length}個の新しいアイテムを追加しました`);
+          
+          // 保存済みアイテムの保存
+          _saveSavedItems();
+          
+          _isLoading = false;
+          resolve(true);
+        } catch (error) {
+          console.error('KeyboardFeed: 更新処理中にエラーが発生しました', error);
+          _isLoading = false;
+          resolve(false);
+        }
       }, 1000);
     });
   }
