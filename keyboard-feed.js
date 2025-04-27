@@ -1,7 +1,7 @@
 /**
  * キーボード情報フィード機能
  * PWA上で動作するキーボード関連情報収集モジュール
- * バージョン: 2.0.1 - 更新時エラー修正
+ * バージョン: 2.0.2 - 画像パスとリンク修正
  */
 
 // 情報フィードの名前空間
@@ -11,6 +11,9 @@ const KeyboardFeed = (() => {
   let _lastUpdated = null;
   let _isLoading = false;
   
+  // プレースホルダー画像パス - 正しいパスに修正
+  const DEFAULT_IMAGE = './assets/placeholder.jpg';
+  
   // モックデータ（組み込み型の静的データ）
   const MOCK_ITEMS = [
     {
@@ -19,7 +22,7 @@ const KeyboardFeed = (() => {
       date: '2025-04-12',
       content: 'NovelKeysの人気スイッチ「NK Cream」が再入荷しました。オリジナルのPOMスイッチで、独特のサウンドと感触が特徴です。通常版に加えて、今回は工場で潤滑済みのバージョンも発売。キー音とスムーズな打鍵感のバランスを追求した人気モデルです。',
       url: 'https://novelkeys.com/products/cream-switches',
-      image: './placeholder.png',
+      image: DEFAULT_IMAGE,
       category: 'switch',
       source: 'NovelKeys',
       saved: false
@@ -30,7 +33,7 @@ const KeyboardFeed = (() => {
       date: '2025-04-10',
       content: '人気のGMK Oliviaキーキャップセットの新バージョン「Olivia++」のグループバイが開始されました。淡いピンクとダークグレーの組み合わせが特徴の人気カラーウェイで、今回はISO配列とErgodox用キーも追加されています。納期は2025年第4四半期の予定です。',
       url: 'https://novelkeys.com/products/gmk-olivia',
-      image: './placeholder.png',
+      image: DEFAULT_IMAGE,
       category: 'keycap',
       source: 'NovelKeys',
       saved: false
@@ -41,7 +44,7 @@ const KeyboardFeed = (() => {
       date: '2025-04-08',
       content: '先日発売されたNK65 Superのユーザーレビューが多数投稿されています。ガスケットマウント、PCBマウントスタビライザー、QMK/VIA対応など機能面での評価が高く、特にPOM製プレートによる打鍵感が好評です。価格以上の価値があるという声が多数。',
       url: 'https://novelkeys.com/collections/keyboards/products/nk65-super',
-      image: './placeholder.png',
+      image: DEFAULT_IMAGE,
       category: 'keyboard',
       source: 'NovelKeys',
       saved: false
@@ -52,7 +55,7 @@ const KeyboardFeed = (() => {
       date: '2025-04-15',
       content: '人気のTofu84キーボードの新バージョンが登場。ガスケットマウント方式を採用し、打鍵感が大幅に向上しています。アルミニウムとポリカーボネートの2種類のケースから選択可能で、ホットスワップPCBを標準装備。VIA対応で簡単にキーマップのカスタマイズが可能です。',
       url: 'https://kbdfans.com/products/tofu84-v2',
-      image: './placeholder.png',
+      image: DEFAULT_IMAGE,
       category: 'keyboard',
       source: 'KBDfans',
       saved: false
@@ -63,7 +66,7 @@ const KeyboardFeed = (() => {
       date: '2025-04-12',
       content: 'KBDfansから新しいOSAプロファイルのキーキャップセット「Marrs Green」が発売されました。OSAプロファイルはSAの高さとOEMのような形状を組み合わせた独特のプロファイルで、PBT素材の心地よい質感が特徴です。落ち着いたグリーンのカラーリングがデスク環境に上品なアクセントを加えます。',
       url: 'https://kbdfans.com/products/osa-marrs-green',
-      image: './placeholder.png',
+      image: DEFAULT_IMAGE,
       category: 'keycap',
       source: 'KBDfans',
       saved: false
@@ -74,7 +77,7 @@ const KeyboardFeed = (() => {
       date: '2025-04-20',
       content: 'タクタイルスイッチの新定番「Boba U4T」の詳細レビュー。強いタクタイル感と特徴的なサウンドが魅力です。デュロク・シアースタイルのトップハウジングとガトロンスタイルのボトムハウジングを組み合わせた独自構造により、深みのあるサウンドを実現しています。最近のメカニカルキーボードでもっとも人気のタクタイルスイッチの一つといえるでしょう。',
       url: 'https://keyswitch.jp/review/bobau4t',
-      image: './placeholder.png',
+      image: DEFAULT_IMAGE,
       category: 'switch',
       source: 'キースイッチ.jp',
       saved: false
@@ -85,7 +88,7 @@ const KeyboardFeed = (() => {
       date: '2025-04-15',
       content: 'メカニカルスイッチの3大タイプであるリニア、タクタイル、クリッキーの特徴と違いを徹底解説。タイピング、ゲーミング、プログラミングなど用途別のおすすめも紹介しています。初めてのメカニカルキーボードを検討している方は必見の内容です。',
       url: 'https://keyswitch.jp/guide/switchtypes',
-      image: './placeholder.png',
+      image: DEFAULT_IMAGE,
       category: 'switch',
       source: 'キースイッチ.jp',
       saved: false
@@ -96,7 +99,7 @@ const KeyboardFeed = (() => {
       date: '2025-04-22',
       content: '人気の分割キーボード「Corne」の最新バージョンが発表されました。ワイヤレス接続対応が最大の特徴です。nice!nano v2コントローラーを使用することで、Bluetooth接続が可能になりました。また、バッテリーホルダーも基板に内蔵されており、110mAhのリチウムイオンバッテリーを左右それぞれに搭載できます。Cherry MXスイッチとChoc V1スイッチの両方に対応したオールラウンダーモデルになっています。',
       url: 'https://yushakobo.jp/products/corne-cherry-v4',
-      image: './placeholder.png',
+      image: DEFAULT_IMAGE,
       category: 'keyboard',
       source: '遊舎工房',
       saved: false
@@ -107,7 +110,7 @@ const KeyboardFeed = (() => {
       date: '2025-04-18',
       content: '薄型キーボード向けの新しいKailh Choc Proスイッチが入荷しました。従来のChocより改良されたデザインで、よりスムーズな打鍵感が特徴です。従来のChocと同じ高さを維持しながらも、MXスタイルのステムを採用しており、一般的なMXキーキャップが使用可能になりました。赤軸（リニア）、茶軸（タクタイル）、白軸（クリッキー）の3種類が揃っています。',
       url: 'https://yushakobo.jp/products/kailh-choc-pro',
-      image: './placeholder.png',
+      image: DEFAULT_IMAGE,
       category: 'switch',
       source: '遊舎工房',
       saved: false
@@ -118,7 +121,7 @@ const KeyboardFeed = (() => {
       date: '2025-04-10',
       content: '日本の伝統的な和紙をモチーフにしたデスクマットシリーズが発売開始。「雲竜」「あさぎ」「墨流し」の3種類のデザインで、900x400mmのサイズ。表面はスムーズな操作感、裏面は滑り止め加工が施されており、キーボードにぴったりのアクセントになります。',
       url: 'https://yushakobo.jp/products/deskmats-washi',
-      image: './placeholder.png',
+      image: DEFAULT_IMAGE,
       category: 'deskmat',
       source: '遊舎工房',
       saved: false
@@ -133,7 +136,7 @@ const KeyboardFeed = (() => {
       date: '2025-04-25',
       content: 'NovelKeysから新しいリニアスイッチ「Silk Yellow V2」が発売されました。従来のSilk Yellowの改良版で、より滑らかな打鍵感を実現。工場で潤滑済みで、すぐに快適なタイピング体験が得られます。',
       url: 'https://novelkeys.com/products/silk-yellow-v2',
-      image: './placeholder.png',
+      image: DEFAULT_IMAGE,
       category: 'switch',
       source: 'NovelKeys',
       saved: false
@@ -144,12 +147,20 @@ const KeyboardFeed = (() => {
       date: '2025-04-23',
       content: '人気のエントリーモデルKBD67 LiteのR4バージョンの予約が開始されました。新色として「マットブラック」と「フロストホワイト」が追加され、USBコネクタがType-Cに変更されています。',
       url: 'https://kbdfans.com/products/kbd67-lite-r4',
-      image: './placeholder.png',
+      image: DEFAULT_IMAGE,
       category: 'keyboard',
       source: 'KBDfans',
       saved: false
     }
   ];
+  
+  // サンプル画像URL（実際のプロジェクトでは適切な画像に置き換えてください）
+  const SAMPLE_IMAGES = {
+    'keyboard': DEFAULT_IMAGE,
+    'switch': DEFAULT_IMAGE,
+    'keycap': DEFAULT_IMAGE,
+    'deskmat': DEFAULT_IMAGE
+  };
   
   // ローカルストレージのキー
   const STORAGE_KEY = 'kblab_saved_items';
@@ -189,20 +200,99 @@ const KeyboardFeed = (() => {
     }
   }
   
+  /**
+   * URLの検証とフォールバックリンクの設定
+   * @private
+   * @param {string} url 検証するURL
+   * @param {string} category カテゴリ
+   * @returns {string} 検証済みURL
+   */
+  function _validateUrl(url, category) {
+    if (!url || typeof url !== 'string') {
+      // カテゴリに基づくフォールバックURL
+      switch (category) {
+        case 'keyboard':
+          return 'https://www.mechanical-keyboard.org/';
+        case 'switch':
+          return 'https://switches.mx/';
+        case 'keycap':
+          return 'https://keycapsets.com/';
+        case 'deskmat':
+          return 'https://mechsupply.co.uk/collections/deskmats';
+        default:
+          return 'https://www.mechanical-keyboard.org/';
+      }
+    }
+    return url;
+  }
+  
+  /**
+   * 画像URLの検証とフォールバック画像の設定
+   * @private
+   * @param {string} imageUrl 検証する画像URL
+   * @param {string} category カテゴリ
+   * @returns {string} 検証済み画像URL
+   */
+  function _validateImageUrl(imageUrl, category) {
+    if (!imageUrl || typeof imageUrl !== 'string') {
+      // カテゴリに基づくフォールバック画像
+      return SAMPLE_IMAGES[category] || DEFAULT_IMAGE;
+    }
+    return imageUrl;
+  }
+  
+  /**
+   * アイテムデータの検証と修正
+   * @private
+   * @param {Object} item 検証するアイテム
+   * @returns {Object} 検証済みアイテム
+   */
+  function _validateItem(item) {
+    if (!item) return null;
+    
+    const validItem = {...item};
+    
+    // 必須フィールドの検証
+    validItem.id = item.id || `item_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    validItem.title = item.title || '無題';
+    validItem.date = item.date || new Date().toISOString().split('T')[0];
+    validItem.content = item.content || '詳細情報なし';
+    validItem.category = item.category || 'general';
+    validItem.source = item.source || 'KeyboardLab';
+    
+    // URL検証
+    validItem.url = _validateUrl(item.url, validItem.category);
+    
+    // 画像URL検証
+    validItem.image = _validateImageUrl(item.image, validItem.category);
+    
+    // 保存状態
+    validItem.saved = Boolean(item.saved);
+    
+    return validItem;
+  }
+  
   // イニシャライザ（すぐに実行される）
   function _init() {
     console.log('KeyboardFeed: 初期化中...');
     
-    // 初期データをコピー
-    _feedItems = [...MOCK_ITEMS];
-    
-    // 保存済みアイテムの読み込み
-    _loadSavedItems();
-    
-    // 最終更新日時の初期化
-    _lastUpdated = new Date();
-    
-    console.log(`KeyboardFeed: ${_feedItems.length}個のアイテムで初期化完了`);
+    try {
+      // 初期データをコピーして検証
+      _feedItems = MOCK_ITEMS.map(item => _validateItem(item)).filter(Boolean);
+      
+      // 保存済みアイテムの読み込み
+      _loadSavedItems();
+      
+      // 最終更新日時の初期化
+      _lastUpdated = new Date();
+      
+      console.log(`KeyboardFeed: ${_feedItems.length}個のアイテムで初期化完了`);
+    } catch (error) {
+      console.error('KeyboardFeed: 初期化エラー', error);
+      // 最低限の初期化を実行
+      _feedItems = [];
+      _lastUpdated = new Date();
+    }
   }
   
   /**
@@ -307,8 +397,13 @@ const KeyboardFeed = (() => {
             .filter(item => item && item.saved)
             .map(item => item.id);
             
-          // 新しいアイテムをコピー
-          const newItems = [...UPDATE_ITEMS].map(item => ({...item}));
+          // 新しいアイテムをコピーして検証
+          const newItems = UPDATE_ITEMS.map(item => {
+            // 画像と日付を更新して各アイテムをコピー
+            const newItem = {...item};
+            newItem.date = new Date().toISOString().split('T')[0]; // 今日の日付に更新
+            return _validateItem(newItem);
+          }).filter(Boolean);
           
           // 新しいアイテムを追加
           _feedItems = [...newItems, ..._feedItems];
@@ -348,6 +443,17 @@ const KeyboardFeed = (() => {
     return _lastUpdated;
   }
   
+  /**
+   * 特定のアイテムを取得
+   * @public
+   * @param {string} itemId アイテムID
+   * @returns {Object|null} アイテムまたはnull
+   */
+  function getItemById(itemId) {
+    if (!itemId) return null;
+    return _feedItems.find(item => item && item.id === itemId) || null;
+  }
+  
   // 自動初期化を行う
   _init();
   
@@ -357,7 +463,8 @@ const KeyboardFeed = (() => {
     searchItems,
     toggleSaveItem,
     fetchFeeds,
-    getLastUpdated
+    getLastUpdated,
+    getItemById
   };
 })();
 
