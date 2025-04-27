@@ -1,7 +1,7 @@
 /**
  * キーボード情報フィード機能
  * PWA上で動作するキーボード関連情報収集モジュール
- * バージョン: 2.0.2 - 画像パスとリンク修正
+ * バージョン: 3.0.0 - ウェブからのデータ取得対応
  */
 
 // 情報フィードの名前空間
@@ -11,10 +11,51 @@ const KeyboardFeed = (() => {
   let _lastUpdated = null;
   let _isLoading = false;
   
-  // プレースホルダー画像パス - 正しいパスに修正
+  // プレースホルダー画像パス
   const DEFAULT_IMAGE = './assets/placeholder.jpg';
   
-  // モックデータ（組み込み型の静的データ）
+  // カテゴリー別デフォルト画像
+  const CATEGORY_IMAGES = {
+    'keyboard': './assets/keyboard.jpg',
+    'switch': './assets/switch.jpg',
+    'keycap': './assets/keycap.jpg',
+    'deskmat': './assets/deskmat.jpg',
+    'general': DEFAULT_IMAGE
+  };
+  
+  // フィードソース
+  const FEED_SOURCES = [
+    {
+      id: 'geekhack',
+      name: 'Geekhack',
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fgeekhack.org%2Findex.php%3Ftype%3Drss%3Baction%3D.xml',
+      category: 'keyboard',
+      enabled: true
+    },
+    {
+      id: 'kbdfans',
+      name: 'KBDfans Blog',
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fkbdfans.com%2Fblogs%2Fnews.atom',
+      category: 'keyboard',
+      enabled: true
+    },
+    {
+      id: 'reddit_mk',
+      name: 'Reddit r/MechanicalKeyboards',
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.reddit.com%2Fr%2FMechanicalKeyboards%2F.rss',
+      category: 'general',
+      enabled: true
+    },
+    {
+      id: 'drop_mech',
+      name: 'Drop Mechanical Keyboards',
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fdrop.com%2Fbuy%2Fmechanical-keyboards%2Ffeed',
+      category: 'keyboard',
+      enabled: true
+    }
+  ];
+  
+  // フォールバック用モックデータ（接続エラー時などに使用）
   const MOCK_ITEMS = [
     {
       id: 'nk_1',
@@ -28,142 +69,59 @@ const KeyboardFeed = (() => {
       saved: false
     },
     {
-      id: 'nk_2',
-      title: 'GMK Olivia++ グループバイ開始',
-      date: '2025-04-10',
-      content: '人気のGMK Oliviaキーキャップセットの新バージョン「Olivia++」のグループバイが開始されました。淡いピンクとダークグレーの組み合わせが特徴の人気カラーウェイで、今回はISO配列とErgodox用キーも追加されています。納期は2025年第4四半期の予定です。',
-      url: 'https://novelkeys.com/products/gmk-olivia',
-      image: DEFAULT_IMAGE,
-      category: 'keycap',
-      source: 'NovelKeys',
-      saved: false
-    },
-    {
-      id: 'nk_3',
-      title: 'NK65 Superユーザー購入レビュー',
-      date: '2025-04-08',
-      content: '先日発売されたNK65 Superのユーザーレビューが多数投稿されています。ガスケットマウント、PCBマウントスタビライザー、QMK/VIA対応など機能面での評価が高く、特にPOM製プレートによる打鍵感が好評です。価格以上の価値があるという声が多数。',
-      url: 'https://novelkeys.com/collections/keyboards/products/nk65-super',
-      image: DEFAULT_IMAGE,
-      category: 'keyboard',
-      source: 'NovelKeys',
-      saved: false
-    },
-    {
-      id: 'kbdfans_1',
-      title: 'Tofu84 V2 発売開始',
-      date: '2025-04-15',
-      content: '人気のTofu84キーボードの新バージョンが登場。ガスケットマウント方式を採用し、打鍵感が大幅に向上しています。アルミニウムとポリカーボネートの2種類のケースから選択可能で、ホットスワップPCBを標準装備。VIA対応で簡単にキーマップのカスタマイズが可能です。',
-      url: 'https://kbdfans.com/products/tofu84-v2',
-      image: DEFAULT_IMAGE,
-      category: 'keyboard',
-      source: 'KBDfans',
-      saved: false
-    },
-    {
-      id: 'kbdfans_2',
-      title: 'OSA Marrs Green キーキャップセット',
-      date: '2025-04-12',
-      content: 'KBDfansから新しいOSAプロファイルのキーキャップセット「Marrs Green」が発売されました。OSAプロファイルはSAの高さとOEMのような形状を組み合わせた独特のプロファイルで、PBT素材の心地よい質感が特徴です。落ち着いたグリーンのカラーリングがデスク環境に上品なアクセントを加えます。',
-      url: 'https://kbdfans.com/products/osa-marrs-green',
-      image: DEFAULT_IMAGE,
-      category: 'keycap',
-      source: 'KBDfans',
-      saved: false
-    },
-    {
-      id: 'sjp_1',
-      title: 'Boba U4T スイッチレビュー',
-      date: '2025-04-20',
-      content: 'タクタイルスイッチの新定番「Boba U4T」の詳細レビュー。強いタクタイル感と特徴的なサウンドが魅力です。デュロク・シアースタイルのトップハウジングとガトロンスタイルのボトムハウジングを組み合わせた独自構造により、深みのあるサウンドを実現しています。最近のメカニカルキーボードでもっとも人気のタクタイルスイッチの一つといえるでしょう。',
-      url: 'https://keyswitch.jp/review/bobau4t',
-      image: DEFAULT_IMAGE,
-      category: 'switch',
-      source: 'キースイッチ.jp',
-      saved: false
-    },
-    {
-      id: 'sjp_2',
-      title: 'リニア vs タクタイル vs クリッキー - スイッチタイプ徹底比較',
-      date: '2025-04-15',
-      content: 'メカニカルスイッチの3大タイプであるリニア、タクタイル、クリッキーの特徴と違いを徹底解説。タイピング、ゲーミング、プログラミングなど用途別のおすすめも紹介しています。初めてのメカニカルキーボードを検討している方は必見の内容です。',
-      url: 'https://keyswitch.jp/guide/switchtypes',
-      image: DEFAULT_IMAGE,
-      category: 'switch',
-      source: 'キースイッチ.jp',
-      saved: false
-    },
-    {
       id: 'yushakobo_1',
       title: 'Corne Cherry v4 発表',
       date: '2025-04-22',
-      content: '人気の分割キーボード「Corne」の最新バージョンが発表されました。ワイヤレス接続対応が最大の特徴です。nice!nano v2コントローラーを使用することで、Bluetooth接続が可能になりました。また、バッテリーホルダーも基板に内蔵されており、110mAhのリチウムイオンバッテリーを左右それぞれに搭載できます。Cherry MXスイッチとChoc V1スイッチの両方に対応したオールラウンダーモデルになっています。',
+      content: '人気の分割キーボード「Corne」の最新バージョンが発表されました。ワイヤレス接続対応が最大の特徴です。nice!nano v2コントローラーを使用することで、Bluetooth接続が可能になりました。',
       url: 'https://yushakobo.jp/products/corne-cherry-v4',
-      image: DEFAULT_IMAGE,
+      image: CATEGORY_IMAGES['keyboard'],
       category: 'keyboard',
-      source: '遊舎工房',
-      saved: false
-    },
-    {
-      id: 'yushakobo_2',
-      title: 'Choc Pro スイッチ入荷',
-      date: '2025-04-18',
-      content: '薄型キーボード向けの新しいKailh Choc Proスイッチが入荷しました。従来のChocより改良されたデザインで、よりスムーズな打鍵感が特徴です。従来のChocと同じ高さを維持しながらも、MXスタイルのステムを採用しており、一般的なMXキーキャップが使用可能になりました。赤軸（リニア）、茶軸（タクタイル）、白軸（クリッキー）の3種類が揃っています。',
-      url: 'https://yushakobo.jp/products/kailh-choc-pro',
-      image: DEFAULT_IMAGE,
-      category: 'switch',
-      source: '遊舎工房',
-      saved: false
-    },
-    {
-      id: 'yushakobo_4',
-      title: 'オリジナルデスクマット「和紙」シリーズ発売',
-      date: '2025-04-10',
-      content: '日本の伝統的な和紙をモチーフにしたデスクマットシリーズが発売開始。「雲竜」「あさぎ」「墨流し」の3種類のデザインで、900x400mmのサイズ。表面はスムーズな操作感、裏面は滑り止め加工が施されており、キーボードにぴったりのアクセントになります。',
-      url: 'https://yushakobo.jp/products/deskmats-washi',
-      image: DEFAULT_IMAGE,
-      category: 'deskmat',
       source: '遊舎工房',
       saved: false
     }
   ];
-  
-  // 追加モックデータ（更新時に追加される新しいアイテム）
-  const UPDATE_ITEMS = [
-    {
-      id: 'nk_update_1',
-      title: 'NK Silk Yellow V2 発売',
-      date: '2025-04-25',
-      content: 'NovelKeysから新しいリニアスイッチ「Silk Yellow V2」が発売されました。従来のSilk Yellowの改良版で、より滑らかな打鍵感を実現。工場で潤滑済みで、すぐに快適なタイピング体験が得られます。',
-      url: 'https://novelkeys.com/products/silk-yellow-v2',
-      image: DEFAULT_IMAGE,
-      category: 'switch',
-      source: 'NovelKeys',
-      saved: false
-    },
-    {
-      id: 'kbdfans_update_1',
-      title: 'KBD67 Lite R4 予約開始',
-      date: '2025-04-23',
-      content: '人気のエントリーモデルKBD67 LiteのR4バージョンの予約が開始されました。新色として「マットブラック」と「フロストホワイト」が追加され、USBコネクタがType-Cに変更されています。',
-      url: 'https://kbdfans.com/products/kbd67-lite-r4',
-      image: DEFAULT_IMAGE,
-      category: 'keyboard',
-      source: 'KBDfans',
-      saved: false
-    }
-  ];
-  
-  // サンプル画像URL（実際のプロジェクトでは適切な画像に置き換えてください）
-  const SAMPLE_IMAGES = {
-    'keyboard': DEFAULT_IMAGE,
-    'switch': DEFAULT_IMAGE,
-    'keycap': DEFAULT_IMAGE,
-    'deskmat': DEFAULT_IMAGE
-  };
   
   // ローカルストレージのキー
-  const STORAGE_KEY = 'kblab_saved_items';
+  const STORAGE_KEYS = {
+    FEED_ITEMS: 'kblab_feed_items',
+    SAVED_ITEMS: 'kblab_saved_items',
+    LAST_UPDATED: 'kblab_last_updated'
+  };
+  
+  /**
+   * ローカルストレージからフィードアイテムを読み込む
+   * @private
+   */
+  function _loadFeedItems() {
+    try {
+      const storedItems = localStorage.getItem(STORAGE_KEYS.FEED_ITEMS);
+      if (storedItems) {
+        _feedItems = JSON.parse(storedItems);
+        console.log(`KeyboardFeed: ${_feedItems.length}個のアイテムを読み込みました`);
+      }
+      
+      const lastUpdateStr = localStorage.getItem(STORAGE_KEYS.LAST_UPDATED);
+      if (lastUpdateStr) {
+        _lastUpdated = new Date(lastUpdateStr);
+      }
+    } catch (error) {
+      console.error('KeyboardFeed: フィードアイテム読み込みエラー', error);
+      _feedItems = [];
+    }
+  }
+  
+  /**
+   * フィードアイテムをローカルストレージに保存
+   * @private
+   */
+  function _saveFeedItems() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.FEED_ITEMS, JSON.stringify(_feedItems));
+      localStorage.setItem(STORAGE_KEYS.LAST_UPDATED, new Date().toISOString());
+    } catch (error) {
+      console.error('KeyboardFeed: フィードアイテム保存エラー', error);
+    }
+  }
   
   /**
    * 保存済みアイテムをローカルストレージから読み込む
@@ -171,13 +129,15 @@ const KeyboardFeed = (() => {
    */
   function _loadSavedItems() {
     try {
-      const savedIds = localStorage.getItem(STORAGE_KEY);
+      const savedIds = localStorage.getItem(STORAGE_KEYS.SAVED_ITEMS);
       if (savedIds) {
         const ids = JSON.parse(savedIds);
         
         // 保存済みフラグをセット
         _feedItems.forEach(item => {
-          item.saved = ids.includes(item.id);
+          if (item) {
+            item.saved = ids.includes(item.id);
+          }
         });
         
         console.log(`KeyboardFeed: ${ids.length}個の保存済みアイテムを読み込みました`);
@@ -193,11 +153,130 @@ const KeyboardFeed = (() => {
    */
   function _saveSavedItems() {
     try {
-      const savedIds = _feedItems.filter(item => item.saved).map(item => item.id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedIds));
+      const savedIds = _feedItems.filter(item => item && item.saved).map(item => item.id);
+      localStorage.setItem(STORAGE_KEYS.SAVED_ITEMS, JSON.stringify(savedIds));
     } catch (error) {
       console.error('KeyboardFeed: 保存済みアイテム保存エラー', error);
     }
+  }
+  
+  /**
+   * フィードソースから記事を取得
+   * @private
+   * @param {Object} source フィードソース情報
+   * @returns {Promise<Array>} 取得したアイテムの配列
+   */
+  function _fetchSourceFeed(source) {
+    return new Promise((resolve, reject) => {
+      console.log(`KeyboardFeed: ${source.name} からフィードを取得中...`);
+      
+      fetch(source.url)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP エラー: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          // RSS to JSONサービスのレスポンス形式に合わせてパース
+          if (data && data.items && Array.isArray(data.items)) {
+            const items = data.items.map(item => _transformFeedItem(item, source));
+            console.log(`KeyboardFeed: ${source.name} から ${items.length}個のアイテムを取得`);
+            resolve(items);
+          } else {
+            console.warn(`KeyboardFeed: ${source.name} からアイテムが取得できませんでした`);
+            resolve([]);
+          }
+        })
+        .catch(error => {
+          console.error(`KeyboardFeed: ${source.name} の取得中にエラー:`, error);
+          resolve([]); // エラー時は空配列を返す
+        });
+    });
+  }
+  
+  /**
+   * RSSアイテムを内部形式に変換
+   * @private
+   * @param {Object} rssItem RSSフィードのアイテム
+   * @param {Object} source フィードソース情報
+   * @returns {Object} 変換されたアイテム
+   */
+  function _transformFeedItem(rssItem, source) {
+    // ユニークなIDを生成
+    const id = `${source.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // 画像URLの抽出
+    let imageUrl = null;
+    
+    // RSSアイテムから画像を抽出（様々なフォーマットに対応）
+    if (rssItem.thumbnail) {
+      imageUrl = rssItem.thumbnail;
+    } else if (rssItem.enclosure && rssItem.enclosure.link) {
+      imageUrl = rssItem.enclosure.link;
+    } else if (rssItem.media && rssItem.media.content) {
+      imageUrl = rssItem.media.content;
+    } else {
+      // 本文から画像URLを抽出する試み
+      const imgMatch = rssItem.description && rssItem.description.match(/<img[^>]+src="([^">]+)"/i);
+      if (imgMatch && imgMatch[1]) {
+        imageUrl = imgMatch[1];
+      }
+    }
+    
+    // カテゴリの決定（キーワードに基づく自動分類）
+    let category = source.category || 'general';
+    
+    const title = rssItem.title || '';
+    const content = rssItem.description || rssItem.content || '';
+    
+    // キーワードベースのカテゴリ判定
+    const titleLower = title.toLowerCase();
+    const contentLower = content.toLowerCase();
+    
+    if (titleLower.includes('keyboard') || titleLower.includes('キーボード') || 
+        contentLower.includes('keyboard') || contentLower.includes('キーボード')) {
+      category = 'keyboard';
+    } else if (titleLower.includes('switch') || titleLower.includes('スイッチ') || 
+               contentLower.includes('switch') || contentLower.includes('スイッチ')) {
+      category = 'switch';
+    } else if (titleLower.includes('keycap') || titleLower.includes('キーキャップ') || 
+               contentLower.includes('keycap') || contentLower.includes('キーキャップ')) {
+      category = 'keycap';
+    } else if (titleLower.includes('deskmat') || titleLower.includes('デスクマット') || 
+               contentLower.includes('deskmat') || contentLower.includes('デスクマット')) {
+      category = 'deskmat';
+    }
+    
+    // デフォルト画像の設定
+    if (!imageUrl) {
+      imageUrl = CATEGORY_IMAGES[category] || DEFAULT_IMAGE;
+    }
+    
+    // 日付の処理
+    let pubDate = new Date();
+    if (rssItem.pubDate) {
+      try {
+        pubDate = new Date(rssItem.pubDate);
+      } catch (e) {
+        console.warn('KeyboardFeed: 日付の解析エラー:', e);
+      }
+    }
+    
+    // HTMLタグの除去
+    const cleanContent = content.replace(/<\/?[^>]+(>|$)/g, " ").trim();
+    
+    return {
+      id: id,
+      title: title,
+      content: cleanContent,
+      date: pubDate.toISOString().split('T')[0],
+      url: rssItem.link || '',
+      image: imageUrl,
+      category: category,
+      source: source.name,
+      saved: false
+    };
   }
   
   /**
@@ -208,7 +287,7 @@ const KeyboardFeed = (() => {
    * @returns {string} 検証済みURL
    */
   function _validateUrl(url, category) {
-    if (!url || typeof url !== 'string') {
+    if (!url || typeof url !== 'string' || url === '#') {
       // カテゴリに基づくフォールバックURL
       switch (category) {
         case 'keyboard':
@@ -220,7 +299,7 @@ const KeyboardFeed = (() => {
         case 'deskmat':
           return 'https://mechsupply.co.uk/collections/deskmats';
         default:
-          return 'https://www.mechanical-keyboard.org/';
+          return 'https://www.reddit.com/r/MechanicalKeyboards/';
       }
     }
     return url;
@@ -234,9 +313,9 @@ const KeyboardFeed = (() => {
    * @returns {string} 検証済み画像URL
    */
   function _validateImageUrl(imageUrl, category) {
-    if (!imageUrl || typeof imageUrl !== 'string') {
+    if (!imageUrl || typeof imageUrl !== 'string' || imageUrl === '#') {
       // カテゴリに基づくフォールバック画像
-      return SAMPLE_IMAGES[category] || DEFAULT_IMAGE;
+      return CATEGORY_IMAGES[category] || DEFAULT_IMAGE;
     }
     return imageUrl;
   }
@@ -272,25 +351,65 @@ const KeyboardFeed = (() => {
     return validItem;
   }
   
+  /**
+   * 古いフィードアイテムを削除
+   * @private
+   */
+  function _cleanupOldItems() {
+    // 30日以上前のアイテムを削除（保存済みは除く）
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const oldCount = _feedItems.length;
+    
+    _feedItems = _feedItems.filter(item => {
+      if (!item) return false;
+      if (item.saved) return true;
+      
+      try {
+        const itemDate = new Date(item.date);
+        return itemDate >= thirtyDaysAgo;
+      } catch (e) {
+        return true; // 日付解析エラーの場合は残す
+      }
+    });
+    
+    if (oldCount !== _feedItems.length) {
+      console.log(`KeyboardFeed: ${oldCount - _feedItems.length}個の古いアイテムを削除しました`);
+    }
+  }
+  
   // イニシャライザ（すぐに実行される）
   function _init() {
     console.log('KeyboardFeed: 初期化中...');
     
     try {
-      // 初期データをコピーして検証
-      _feedItems = MOCK_ITEMS.map(item => _validateItem(item)).filter(Boolean);
+      // ローカルストレージからフィードアイテムを読み込む
+      _loadFeedItems();
       
-      // 保存済みアイテムの読み込み
+      // 保存済みアイテムの状態を復元
       _loadSavedItems();
       
+      // 古いアイテムをクリーンアップ
+      _cleanupOldItems();
+      
+      // アイテムがなければモックデータを使用
+      if (_feedItems.length === 0) {
+        console.log('KeyboardFeed: 保存されたアイテムがないためモックデータを使用します');
+        _feedItems = MOCK_ITEMS.map(item => _validateItem(item)).filter(Boolean);
+        _saveFeedItems();
+      }
+      
       // 最終更新日時の初期化
-      _lastUpdated = new Date();
+      if (!_lastUpdated) {
+        _lastUpdated = new Date();
+      }
       
       console.log(`KeyboardFeed: ${_feedItems.length}個のアイテムで初期化完了`);
     } catch (error) {
       console.error('KeyboardFeed: 初期化エラー', error);
       // 最低限の初期化を実行
-      _feedItems = [];
+      _feedItems = MOCK_ITEMS.map(item => _validateItem(item)).filter(Boolean);
       _lastUpdated = new Date();
     }
   }
@@ -374,7 +493,7 @@ const KeyboardFeed = (() => {
   }
   
   /**
-   * フィードを更新（デモでは新しいモックデータを追加）
+   * フィードを更新（実際のウェブからデータを取得）
    * @public
    * @returns {Promise} 更新結果のPromise
    */
@@ -388,50 +507,68 @@ const KeyboardFeed = (() => {
     _isLoading = true;
     console.log('KeyboardFeed: フィード更新開始');
     
-    // 非同期処理（実際のネットワークリクエストをシミュレート）
-    return new Promise((resolve) => {
-      setTimeout(() => {
+    // オンライン状態をチェック
+    if (!navigator.onLine) {
+      console.warn('KeyboardFeed: オフラインのため、更新をスキップします');
+      _isLoading = false;
+      return Promise.resolve(false);
+    }
+    
+    // 有効なソースのみをフェッチ
+    const fetchPromises = FEED_SOURCES
+      .filter(source => source.enabled)
+      .map(source => _fetchSourceFeed(source));
+    
+    return Promise.all(fetchPromises)
+      .then(resultsArray => {
         try {
-          // 既存の保存状態を控える
-          const savedIds = _feedItems
-            .filter(item => item && item.saved)
-            .map(item => item.id);
-            
-          // 新しいアイテムをコピーして検証
-          const newItems = UPDATE_ITEMS.map(item => {
-            // 画像と日付を更新して各アイテムをコピー
-            const newItem = {...item};
-            newItem.date = new Date().toISOString().split('T')[0]; // 今日の日付に更新
-            return _validateItem(newItem);
-          }).filter(Boolean);
+          // 全ソースの結果を統合
+          const newItems = resultsArray.flat();
           
-          // 新しいアイテムを追加
-          _feedItems = [...newItems, ..._feedItems];
+          if (newItems.length > 0) {
+            console.log(`KeyboardFeed: ${newItems.length}個の新しいアイテムを取得しました`);
+            
+            // 既存のアイテムと統合（重複を避ける）
+            const existingIds = new Set(_feedItems.map(item => item.id));
+            const uniqueNewItems = newItems
+              .map(item => _validateItem(item))
+              .filter(Boolean)
+              .filter(item => !existingIds.has(item.id));
+            
+            if (uniqueNewItems.length > 0) {
+              // 新しいアイテムを先頭に追加
+              _feedItems = [...uniqueNewItems, ..._feedItems];
+              
+              // 古いアイテムをクリーンアップ
+              _cleanupOldItems();
+              
+              // 保存
+              _saveFeedItems();
+              
+              console.log(`KeyboardFeed: ${uniqueNewItems.length}個のユニークな新しいアイテムを追加しました`);
+            } else {
+              console.log('KeyboardFeed: 新規アイテムはありませんでした');
+            }
+          } else {
+            console.log('KeyboardFeed: 取得したアイテムはありませんでした');
+          }
           
           // 最終更新日時を更新
           _lastUpdated = new Date();
           
-          // 保存状態を復元
-          _feedItems.forEach(item => {
-            if (item) {
-              item.saved = savedIds.includes(item.id);
-            }
-          });
-          
-          console.log(`KeyboardFeed: ${newItems.length}個の新しいアイテムを追加しました`);
-          
-          // 保存済みアイテムの保存
-          _saveSavedItems();
-          
           _isLoading = false;
-          resolve(true);
+          return newItems.length > 0;
         } catch (error) {
-          console.error('KeyboardFeed: 更新処理中にエラーが発生しました', error);
+          console.error('KeyboardFeed: データ処理中にエラー', error);
           _isLoading = false;
-          resolve(false);
+          return false;
         }
-      }, 1000);
-    });
+      })
+      .catch(error => {
+        console.error('KeyboardFeed: フィード取得中にエラー', error);
+        _isLoading = false;
+        return false;
+      });
   }
   
   /**
@@ -454,6 +591,31 @@ const KeyboardFeed = (() => {
     return _feedItems.find(item => item && item.id === itemId) || null;
   }
   
+  /**
+   * フィードソース一覧を取得
+   * @public
+   * @returns {Array} フィードソースの配列
+   */
+  function getSources() {
+    return [...FEED_SOURCES];
+  }
+  
+  /**
+   * フィードソースの有効/無効を切り替え
+   * @public
+   * @param {string} sourceId ソースID
+   * @param {boolean} enabled 有効にする場合true
+   * @returns {boolean} 成功した場合true
+   */
+  function setSourceEnabled(sourceId, enabled) {
+    const source = FEED_SOURCES.find(s => s.id === sourceId);
+    if (source) {
+      source.enabled = !!enabled;
+      return true;
+    }
+    return false;
+  }
+  
   // 自動初期化を行う
   _init();
   
@@ -464,7 +626,9 @@ const KeyboardFeed = (() => {
     toggleSaveItem,
     fetchFeeds,
     getLastUpdated,
-    getItemById
+    getItemById,
+    getSources,
+    setSourceEnabled
   };
 })();
 
