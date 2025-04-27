@@ -1,7 +1,7 @@
 /**
  * キーボード情報フィードUI
  * KeyboardLabアプリのフィード表示UI実装
- * バージョン: 1.0.0
+ * バージョン: 1.1.0 - 検索機能追加
  */
 
 const FeedUI = (() => {
@@ -11,6 +11,7 @@ const FeedUI = (() => {
   let _selectedItem = null;
   let _isLoading = false;
   let _savedOnly = false;
+  let _searchQuery = ''; // 検索クエリを保持する変数を追加
   
   // DOM要素の参照
   const DOM = {
@@ -23,7 +24,9 @@ const FeedUI = (() => {
     savedToggle: null,
     loadingIndicator: null,
     emptyMessage: null,
-    backButton: null
+    backButton: null,
+    searchInput: null, // 検索入力欄の参照を追加
+    searchClearBtn: null // 検索クリアボタンの参照を追加
   };
   
   /**
@@ -84,6 +87,17 @@ const FeedUI = (() => {
         </div>
       </div>
       
+      <!-- 検索ボックスを追加 -->
+      <div class="feed-search">
+        <div class="feed-search-input-wrapper">
+          <svg class="feed-search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="feed-search-input" class="feed-search-input" placeholder="キーボード情報を検索...">
+          <button id="feed-search-clear" class="feed-search-clear" style="display: none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      </div>
+      
       <div class="feed-tabs" id="feed-category-tabs">
         <button class="feed-tab active" data-category="all">すべて</button>
         <button class="feed-tab" data-category="keyboard">キーボード</button>
@@ -116,6 +130,8 @@ const FeedUI = (() => {
     DOM.savedToggle = document.getElementById('feed-saved-only');
     DOM.loadingIndicator = document.getElementById('feed-loading');
     DOM.emptyMessage = document.getElementById('feed-empty');
+    DOM.searchInput = document.getElementById('feed-search-input'); // 検索入力欄の参照を設定
+    DOM.searchClearBtn = document.getElementById('feed-search-clear'); // 検索クリアボタンの参照を設定
     
     // カテゴリタブのクリックイベント
     const tabs = DOM.categoryTabs.querySelectorAll('.feed-tab');
@@ -142,6 +158,21 @@ const FeedUI = (() => {
       // このデモでは実装しない（ページネーション機能）
       this.disabled = true;
       this.textContent = 'すべて表示済み';
+    });
+    
+    // 検索入力イベントの設定
+    DOM.searchInput.addEventListener('input', function() {
+      _searchQuery = this.value.trim().toLowerCase();
+      DOM.searchClearBtn.style.display = _searchQuery ? 'block' : 'none';
+      _renderItems();
+    });
+    
+    // 検索クリアボタンのイベント
+    DOM.searchClearBtn.addEventListener('click', function() {
+      DOM.searchInput.value = '';
+      _searchQuery = '';
+      this.style.display = 'none';
+      _renderItems();
     });
     
     // 初期表示状態の設定
@@ -192,12 +223,23 @@ const FeedUI = (() => {
     // アイテムを取得
     const items = KeyboardFeed.getItems(_currentCategory, _savedOnly);
     
+    // 検索クエリに基づいてフィルタリング
+    const filteredItems = _searchQuery ? 
+      items.filter(item => _itemMatchesSearch(item, _searchQuery)) : 
+      items;
+    
     // ローディング非表示
     DOM.loadingIndicator.style.display = 'none';
     
-    if (items.length === 0) {
+    if (filteredItems.length === 0) {
       // アイテムがない場合の表示
       DOM.emptyMessage.style.display = 'flex';
+      if (_searchQuery) {
+        // 検索結果がない場合のメッセージを変更
+        DOM.emptyMessage.innerHTML = `<p>"${_searchQuery}" に一致する情報がありません</p>`;
+      } else {
+        DOM.emptyMessage.innerHTML = '<p>情報がありません</p>';
+      }
       DOM.loadMoreBtn.style.display = 'none';
       return;
     }
@@ -207,7 +249,7 @@ const FeedUI = (() => {
     
     // アイテムのHTML生成
     let html = '';
-    items.forEach(item => {
+    filteredItems.forEach(item => {
       html += _generateItemHtml(item);
     });
     
@@ -218,7 +260,32 @@ const FeedUI = (() => {
     _setupItemEventListeners();
     
     // もっと見るボタンの表示（アイテム数が10個以上なら表示）
-    DOM.loadMoreBtn.style.display = items.length >= 10 ? 'block' : 'none';
+    DOM.loadMoreBtn.style.display = filteredItems.length >= 10 ? 'block' : 'none';
+  }
+  
+  /**
+   * アイテムが検索クエリに一致するかチェック
+   * @private
+   * @param {Object} item チェック対象のアイテム
+   * @param {string} query 検索クエリ
+   * @returns {boolean} 一致すればtrue
+   */
+  function _itemMatchesSearch(item, query) {
+    if (!query) return true;
+    
+    // 検索対象のフィールド
+    const fieldsToSearch = [
+      item.title,
+      item.content,
+      item.source,
+      item.category
+    ];
+    
+    // いずれかのフィールドにクエリが含まれていればtrue
+    return fieldsToSearch.some(field => {
+      if (!field) return false;
+      return field.toString().toLowerCase().includes(query);
+    });
   }
   
   /**
@@ -250,6 +317,15 @@ const FeedUI = (() => {
         categoryLabel = item.category;
     }
     
+    // 検索クエリがある場合、一致部分をハイライト
+    let title = item.title;
+    let excerpt = _truncateText(item.content, 100);
+    
+    if (_searchQuery) {
+      title = _highlightText(title, _searchQuery);
+      excerpt = _highlightText(excerpt, _searchQuery);
+    }
+    
     return `
       <div class="feed-item ${savedClass}" data-id="${item.id}">
         <div class="feed-item-image">
@@ -260,8 +336,8 @@ const FeedUI = (() => {
             <span class="feed-item-source">${item.source}</span>
             <span class="feed-item-date">${formattedDate}</span>
           </div>
-          <h3 class="feed-item-title">${item.title}</h3>
-          <p class="feed-item-excerpt">${_truncateText(item.content, 100)}</p>
+          <h3 class="feed-item-title">${title}</h3>
+          <p class="feed-item-excerpt">${excerpt}</p>
           <div class="feed-item-footer">
             <span class="feed-item-category">${categoryLabel}</span>
             <button class="feed-item-save-btn" data-id="${item.id}">
@@ -271,6 +347,20 @@ const FeedUI = (() => {
         </div>
       </div>
     `;
+  }
+  
+  /**
+   * テキスト内の検索クエリと一致する部分をハイライトする
+   * @private
+   * @param {string} text 元のテキスト
+   * @param {string} query 検索クエリ
+   * @returns {string} ハイライト処理されたHTML
+   */
+  function _highlightText(text, query) {
+    if (!query || !text) return text;
+    
+    const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    return text.replace(regex, match => `<span class="feed-search-highlight">${match}</span>`);
   }
   
   /**
@@ -303,6 +393,15 @@ const FeedUI = (() => {
         categoryLabel = item.category;
     }
     
+    // 検索クエリがある場合、詳細コンテンツでもハイライト
+    let title = item.title;
+    let content = item.content;
+    
+    if (_searchQuery) {
+      title = _highlightText(title, _searchQuery);
+      content = _highlightText(content, _searchQuery);
+    }
+    
     const html = `
       <div class="feed-detail-header">
         <button id="feed-back-btn" class="feed-back-btn">
@@ -324,10 +423,10 @@ const FeedUI = (() => {
         <span class="feed-detail-category">${categoryLabel}</span>
       </div>
       
-      <h2 class="feed-detail-title">${item.title}</h2>
+      <h2 class="feed-detail-title">${title}</h2>
       
       <div class="feed-detail-content">
-        <p>${item.content}</p>
+        <p>${content}</p>
       </div>
       
       <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="feed-detail-link">
@@ -388,7 +487,13 @@ const FeedUI = (() => {
         
         const itemId = this.getAttribute('data-id');
         const items = KeyboardFeed.getItems(_currentCategory, _savedOnly);
-        const selectedItem = items.find(item => item.id === itemId);
+        let selectedItem = items.find(item => item.id === itemId);
+        
+        // 検索クエリがある場合は、フィルタリングされたアイテムから検索
+        if (_searchQuery && !selectedItem) {
+          const allItems = KeyboardFeed.getItems('all', _savedOnly);
+          selectedItem = allItems.find(item => item.id === itemId && _itemMatchesSearch(item, _searchQuery));
+        }
         
         if (selectedItem) {
           _showItemDetail(selectedItem);
