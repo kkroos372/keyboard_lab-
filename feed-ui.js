@@ -1,7 +1,7 @@
 /**
  * キーボード情報フィードUI
  * KeyboardLabアプリのフィード表示UI実装
- * バージョン: 2.0.0 - シンプル化とエラー対応
+ * バージョン: 2.0.1 - 画面表示修正とエラーハンドリング強化
  */
 
 const FeedUI = (() => {
@@ -65,6 +65,10 @@ const FeedUI = (() => {
    * @private
    */
   function _buildUI() {
+    // まず既存のコンテンツを削除
+    DOM.container.innerHTML = '';
+    
+    // UIの基本構造を作成
     DOM.container.innerHTML = `
       <div class="feed-header">
         <h2>キーボード情報フィード</h2>
@@ -116,13 +120,20 @@ const FeedUI = (() => {
     DOM.itemsList = document.getElementById('feed-items-list');
     DOM.itemDetail = document.getElementById('feed-item-detail');
     DOM.categoryTabs = document.getElementById('feed-category-tabs');
-    DOM.loadMoreBtn = document.getElementById('feed-load-more');
-    DOM.refreshBtn = document.getElementById('feed-refresh-btn');
+    DOM.refreshBtn = document.querySelector('#feed-refresh-btn');
     DOM.savedToggle = document.getElementById('feed-saved-only');
     DOM.loadingIndicator = document.getElementById('feed-loading');
     DOM.emptyMessage = document.getElementById('feed-empty');
     DOM.searchInput = document.getElementById('feed-search-input');
     DOM.searchClearBtn = document.getElementById('feed-search-clear');
+    
+    // 要素の存在チェック
+    if (!DOM.itemsList || !DOM.itemDetail || !DOM.categoryTabs || 
+        !DOM.refreshBtn || !DOM.savedToggle || !DOM.loadingIndicator || 
+        !DOM.emptyMessage || !DOM.searchInput || !DOM.searchClearBtn) {
+      console.error('FeedUI: 一部のDOM要素が見つかりません');
+      return;
+    }
     
     // カテゴリタブのクリックイベント
     const tabs = DOM.categoryTabs.querySelectorAll('.feed-tab');
@@ -220,7 +231,7 @@ const FeedUI = (() => {
     // ローディング非表示
     DOM.loadingIndicator.style.display = 'none';
     
-    if (filteredItems.length === 0) {
+    if (!filteredItems || filteredItems.length === 0) {
       // アイテムがない場合の表示
       DOM.emptyMessage.style.display = 'flex';
       if (_searchQuery) {
@@ -254,6 +265,8 @@ const FeedUI = (() => {
    * @returns {string} 生成されたHTML
    */
   function _generateItemHtml(item) {
+    if (!item) return '';
+    
     const formattedDate = _formatDate(item.date);
     const imageUrl = item.image || './assets/placeholder.jpg';
     const savedClass = item.saved ? 'saved' : '';
@@ -273,12 +286,12 @@ const FeedUI = (() => {
         categoryLabel = 'デスクマット';
         break;
       default:
-        categoryLabel = item.category;
+        categoryLabel = item.category || '';
     }
     
     // 検索クエリがある場合、一致部分をハイライト
-    let title = item.title;
-    let excerpt = _truncateText(item.content, 100);
+    let title = item.title || '';
+    let excerpt = _truncateText(item.content || '', 100);
     
     if (_searchQuery) {
       title = _highlightText(title, _searchQuery);
@@ -288,11 +301,11 @@ const FeedUI = (() => {
     return `
       <div class="feed-item ${savedClass}" data-id="${item.id}">
         <div class="feed-item-image">
-          <img src="${imageUrl}" alt="${item.title}" onerror="this.src='./assets/placeholder.jpg'">
+          <img src="${imageUrl}" alt="${title}" onerror="this.src='./assets/placeholder.jpg'">
         </div>
         <div class="feed-item-content">
           <div class="feed-item-header">
-            <span class="feed-item-source">${item.source}</span>
+            <span class="feed-item-source">${item.source || ''}</span>
             <span class="feed-item-date">${formattedDate}</span>
           </div>
           <h3 class="feed-item-title">${title}</h3>
@@ -334,6 +347,8 @@ const FeedUI = (() => {
    * @param {Object} item 表示するアイテム
    */
   function _showItemDetail(item) {
+    if (!item) return;
+    
     _selectedItem = item;
     _setViewMode('detail');
     
@@ -355,12 +370,12 @@ const FeedUI = (() => {
         categoryLabel = 'デスクマット';
         break;
       default:
-        categoryLabel = item.category;
+        categoryLabel = item.category || '';
     }
     
     // 検索クエリがある場合、詳細コンテンツでもハイライト
-    let title = item.title;
-    let content = item.content;
+    let title = item.title || '';
+    let content = item.content || '';
     
     if (_searchQuery) {
       title = _highlightText(title, _searchQuery);
@@ -383,7 +398,7 @@ const FeedUI = (() => {
       </div>
       
       <div class="feed-detail-meta">
-        <span class="feed-detail-source">${item.source}</span>
+        <span class="feed-detail-source">${item.source || ''}</span>
         <span class="feed-detail-date">${formattedDate}</span>
         <span class="feed-detail-category">${categoryLabel}</span>
       </div>
@@ -394,7 +409,7 @@ const FeedUI = (() => {
         <p>${content}</p>
       </div>
       
-      <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="feed-detail-link">
+      <a href="${item.url || '#'}" target="_blank" rel="noopener noreferrer" class="feed-detail-link">
         元の記事を読む
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
       </a>
@@ -415,22 +430,26 @@ const FeedUI = (() => {
     if (saveBtn) {
       saveBtn.addEventListener('click', function() {
         const itemId = this.getAttribute('data-id');
-        const newSaved = KeyboardFeed.toggleSaveItem(itemId);
-        
-        // アイコンの表示を更新
-        const svg = this.querySelector('svg');
-        if (svg) {
-          svg.setAttribute('fill', newSaved ? 'currentColor' : 'none');
-        }
-        
-        // 選択中のアイテムの状態も更新
-        if (_selectedItem && _selectedItem.id === itemId) {
-          _selectedItem.saved = newSaved;
-        }
-        
-        // 保存済みのみ表示中で、アイテムの保存を解除した場合はリストに戻る
-        if (_savedOnly && !newSaved) {
-          _renderItems();
+        try {
+          const newSaved = KeyboardFeed.toggleSaveItem(itemId);
+          
+          // アイコンの表示を更新
+          const svg = this.querySelector('svg');
+          if (svg) {
+            svg.setAttribute('fill', newSaved ? 'currentColor' : 'none');
+          }
+          
+          // 選択中のアイテムの状態も更新
+          if (_selectedItem && _selectedItem.id === itemId) {
+            _selectedItem.saved = newSaved;
+          }
+          
+          // 保存済みのみ表示中で、アイテムの保存を解除した場合はリストに戻る
+          if (_savedOnly && !newSaved) {
+            _renderItems();
+          }
+        } catch (error) {
+          console.error('FeedUI: 保存切り替えエラー', error);
         }
       });
     }
@@ -542,43 +561,82 @@ const FeedUI = (() => {
     if (_isLoading) return;
     
     _isLoading = true;
-    DOM.refreshBtn.disabled = true;
-    DOM.refreshBtn.classList.add('loading');
+    
+    // 更新ボタンを無効化
+    if (DOM.refreshBtn) {
+      DOM.refreshBtn.disabled = true;
+      DOM.refreshBtn.classList.add('loading');
+    }
     
     // ローディング表示
-    if (_currentView === 'list') {
+    if (_currentView === 'list' && DOM.loadingIndicator) {
       DOM.loadingIndicator.style.display = 'flex';
     }
     
+    // 復旧関数
+    const resetUI = () => {
+      if (DOM.refreshBtn) {
+        DOM.refreshBtn.disabled = false;
+        DOM.refreshBtn.classList.remove('loading');
+      }
+      
+      if (DOM.loadingIndicator) {
+        DOM.loadingIndicator.style.display = 'none';
+      }
+      
+      _isLoading = false;
+    };
+    
     try {
-      // フィードの更新
-      KeyboardFeed.fetchFeeds()
+      // 実際のデータ更新処理をラップ
+      const updatePromise = new Promise((resolve, reject) => {
+        // KeyboardFeedが存在するかチェック
+        if (typeof KeyboardFeed === 'undefined' || !KeyboardFeed.fetchFeeds) {
+          reject(new Error('KeyboardFeedモジュールが見つからないか、fetchFeedsが利用できません'));
+          return;
+        }
+        
+        // 更新処理
+        KeyboardFeed.fetchFeeds()
+          .then(result => {
+            console.log('FeedUI: フィード更新完了:', result);
+            resolve(result);
+          })
+          .catch(error => {
+            console.error('FeedUI: フィード更新エラー:', error);
+            reject(error);
+          });
+      });
+      
+      // 実行とエラーハンドリング
+      updatePromise
         .then(() => {
-          console.log('FeedUI: フィード更新完了');
-          
           // 表示を更新
           if (_currentView === 'list') {
             _renderItems();
           }
         })
-        .catch(error => {
-          console.error('FeedUI: フィード更新エラー', error);
+        .catch(() => {
+          // エラーメッセージ表示
+          alert('情報の更新中にエラーが発生しました。詳細はコンソールをご確認ください。');
         })
         .finally(() => {
-          // 常に実行される処理（ボタン状態を戻す）
-          DOM.refreshBtn.disabled = false;
-          DOM.refreshBtn.classList.remove('loading');
-          DOM.loadingIndicator.style.display = 'none';
-          _isLoading = false;
+          // UIを復旧
+          resetUI();
         });
+        
+      // タイムアウト処理（10秒後に強制的に復旧）
+      setTimeout(() => {
+        if (_isLoading) {
+          console.warn('FeedUI: 更新処理がタイムアウトしました');
+          resetUI();
+        }
+      }, 10000);
+      
     } catch (error) {
       console.error('FeedUI: 予期せぬエラー', error);
-      
-      // エラー時のUI復旧
-      DOM.refreshBtn.disabled = false;
-      DOM.refreshBtn.classList.remove('loading');
-      DOM.loadingIndicator.style.display = 'none';
-      _isLoading = false;
+      resetUI();
+      alert('予期せぬエラーが発生しました。詳細はコンソールをご確認ください。');
     }
   }
   
@@ -632,10 +690,11 @@ document.addEventListener('DOMContentLoaded', function() {
   if (infoTab) {
     console.log('FeedUI: infoタブが見つかりました');
     
-    // UIを包含するコンテナを作成
-    if (!document.getElementById('feed-container')) {
+    // UIを包含するコンテナを作成または取得
+    let feedContainer = document.getElementById('feed-container');
+    if (!feedContainer) {
       console.log('FeedUI: feed-containerを作成します');
-      const feedContainer = document.createElement('div');
+      feedContainer = document.createElement('div');
       feedContainer.id = 'feed-container';
       feedContainer.className = 'feed-container';
       infoTab.appendChild(feedContainer);
@@ -645,7 +704,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
       console.log('FeedUI: 初期化を開始します');
       FeedUI.init('feed-container');
-    }, 100); // 少し遅延させてKeyboardFeedの読み込みを確実にする
+    }, 200); // 少し遅延させてKeyboardFeedの読み込みを確実にする
   } else {
     console.log('FeedUI: infoタブが見つかりません');
   }
