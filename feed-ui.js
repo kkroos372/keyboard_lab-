@@ -1,7 +1,7 @@
 /**
  * キーボード情報フィードUI
  * KeyboardLabアプリのフィード表示UI実装
- * バージョン: 2.0.3 - 画像表示とリンク問題修正
+ * バージョン: 3.0.0 - ウェブからのデータ取得対応
  */
 
 const FeedUI = (() => {
@@ -12,6 +12,7 @@ const FeedUI = (() => {
   let _isLoading = false;
   let _savedOnly = false;
   let _searchQuery = ''; // 検索クエリを保持する変数
+  let _isInitialLoad = true; // 初回読み込みフラグ
   
   // デフォルトのプレースホルダー画像
   const DEFAULT_IMAGE = './assets/placeholder.jpg';
@@ -29,7 +30,8 @@ const FeedUI = (() => {
     emptyMessage: null,
     backButton: null,
     searchInput: null, // 検索入力欄の参照
-    searchClearBtn: null // 検索クリアボタンの参照
+    searchClearBtn: null, // 検索クリアボタンの参照
+    sourceInfo: null // ソース情報表示エリア
   };
   
   /**
@@ -60,10 +62,52 @@ const FeedUI = (() => {
     // 必要な画像ファイルの事前読み込み
     _preloadImages();
     
+    // ネットワーク状態の監視
+    _setupNetworkMonitoring();
+    
     // 初期データの表示
     _renderItems();
     
+    // 初回読み込み時は自動的にフィードを更新
+    if (_isInitialLoad) {
+      setTimeout(() => {
+        _refreshFeed();
+        _isInitialLoad = false;
+      }, 500);
+    }
+    
     console.log('FeedUI: 初期化完了');
+  }
+  
+  /**
+   * ネットワーク状態の監視をセットアップ
+   * @private
+   */
+  function _setupNetworkMonitoring() {
+    // オンライン状態の変化を監視
+    window.addEventListener('online', () => {
+      console.log('FeedUI: オンラインになりました');
+      // 更新ボタンを有効化
+      if (DOM.refreshBtn) {
+        DOM.refreshBtn.disabled = false;
+        DOM.refreshBtn.setAttribute('title', 'フィードを更新');
+      }
+    });
+    
+    window.addEventListener('offline', () => {
+      console.log('FeedUI: オフラインになりました');
+      // 更新ボタンを無効化
+      if (DOM.refreshBtn) {
+        DOM.refreshBtn.disabled = true;
+        DOM.refreshBtn.setAttribute('title', 'オフラインモード - 更新できません');
+      }
+    });
+    
+    // 初期状態を設定
+    if (DOM.refreshBtn) {
+      DOM.refreshBtn.disabled = !navigator.onLine;
+      DOM.refreshBtn.setAttribute('title', navigator.onLine ? 'フィードを更新' : 'オフラインモード - 更新できません');
+    }
   }
   
   /**
@@ -124,6 +168,7 @@ const FeedUI = (() => {
         <button class="feed-tab" data-category="switch">スイッチ</button>
         <button class="feed-tab" data-category="keycap">キーキャップ</button>
         <button class="feed-tab" data-category="deskmat">デスクマット</button>
+        <button class="feed-tab" data-category="general">その他</button>
       </div>
       
       <div class="feed-content">
@@ -131,10 +176,13 @@ const FeedUI = (() => {
         <div id="feed-item-detail" class="feed-item-detail"></div>
         <div id="feed-loading" class="feed-loading">
           <div class="feed-spinner"></div>
-          <p>読み込み中...</p>
+          <p>ウェブから最新情報を読み込み中...</p>
         </div>
         <div id="feed-empty" class="feed-empty">
           <p>情報がありません</p>
+        </div>
+        <div id="feed-source-info" class="feed-source-info">
+          <p class="feed-last-updated">最終更新: 読み込み中...</p>
         </div>
       </div>
     `;
@@ -149,6 +197,7 @@ const FeedUI = (() => {
     DOM.emptyMessage = document.getElementById('feed-empty');
     DOM.searchInput = document.getElementById('feed-search-input');
     DOM.searchClearBtn = document.getElementById('feed-search-clear');
+    DOM.sourceInfo = document.getElementById('feed-source-info');
     
     // 要素の存在チェック
     if (!DOM.itemsList || !DOM.itemDetail || !DOM.categoryTabs || 
@@ -198,6 +247,41 @@ const FeedUI = (() => {
     DOM.itemDetail.style.display = 'none';
     DOM.loadingIndicator.style.display = 'none';
     DOM.emptyMessage.style.display = 'none';
+    
+    // 最終更新日時を表示
+    _updateLastUpdatedInfo();
+  }
+  
+  /**
+   * 最終更新日時情報を更新
+   * @private
+   */
+  function _updateLastUpdatedInfo() {
+    if (!DOM.sourceInfo) return;
+    
+    const lastUpdated = KeyboardFeed.getLastUpdated();
+    if (!lastUpdated) {
+      DOM.sourceInfo.querySelector('.feed-last-updated').textContent = '最終更新: なし';
+      return;
+    }
+    
+    // 日時フォーマット
+    const options = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+    
+    let updatedText = `最終更新: ${lastUpdated.toLocaleDateString('ja-JP', options)}`;
+    
+    // オンライン状態を追加
+    if (!navigator.onLine) {
+      updatedText += ' (オフラインモード)';
+    }
+    
+    DOM.sourceInfo.querySelector('.feed-last-updated').textContent = updatedText;
   }
   
   /**
@@ -273,7 +357,10 @@ const FeedUI = (() => {
     _selectedItem = null;
     
     // ローディング表示
-    DOM.loadingIndicator.style.display = 'flex';
+    if (_isInitialLoad) {
+      DOM.loadingIndicator.style.display = 'flex';
+    }
+    
     DOM.itemsList.innerHTML = '';
     DOM.emptyMessage.style.display = 'none';
     
@@ -298,8 +385,12 @@ const FeedUI = (() => {
       DOM.emptyMessage.style.display = 'flex';
       if (_searchQuery) {
         DOM.emptyMessage.innerHTML = `<p>"${_searchQuery}" に一致する情報がありません</p>`;
+      } else if (_currentCategory !== 'all') {
+        DOM.emptyMessage.innerHTML = `<p>${_getCategoryLabel(_currentCategory)}カテゴリに情報がありません</p>`;
+      } else if (_savedOnly) {
+        DOM.emptyMessage.innerHTML = '<p>保存済みの情報はありません</p>';
       } else {
-        DOM.emptyMessage.innerHTML = '<p>情報がありません</p>';
+        DOM.emptyMessage.innerHTML = '<p>情報がありません。「更新」ボタンを押して最新情報を取得してください。</p>';
       }
       return;
     }
@@ -318,6 +409,32 @@ const FeedUI = (() => {
     
     // 各アイテムにイベントリスナーを設定
     _setupItemEventListeners();
+    
+    // 最終更新情報を更新
+    _updateLastUpdatedInfo();
+  }
+  
+  /**
+   * カテゴリーラベルを取得
+   * @private
+   * @param {string} category カテゴリー
+   * @returns {string} 表示用カテゴリーラベル
+   */
+  function _getCategoryLabel(category) {
+    switch (category) {
+      case 'keyboard':
+        return 'キーボード';
+      case 'switch':
+        return 'スイッチ';
+      case 'keycap':
+        return 'キーキャップ';
+      case 'deskmat':
+        return 'デスクマット';
+      case 'general':
+        return 'その他';
+      default:
+        return category || '';
+    }
   }
   
   /**
@@ -333,23 +450,7 @@ const FeedUI = (() => {
     const imageUrl = _validateImageUrl(item.image, item.category);
     const savedClass = item.saved ? 'saved' : '';
     
-    let categoryLabel = '';
-    switch (item.category) {
-      case 'keyboard':
-        categoryLabel = 'キーボード';
-        break;
-      case 'switch':
-        categoryLabel = 'スイッチ';
-        break;
-      case 'keycap':
-        categoryLabel = 'キーキャップ';
-        break;
-      case 'deskmat':
-        categoryLabel = 'デスクマット';
-        break;
-      default:
-        categoryLabel = item.category || '';
-    }
+    let categoryLabel = _getCategoryLabel(item.category);
     
     // 検索クエリがある場合、一致部分をハイライト
     let title = item.title || '';
@@ -418,23 +519,7 @@ const FeedUI = (() => {
     const imageUrl = _validateImageUrl(item.image, item.category);
     const itemUrl = _validateUrl(item.url);
     
-    let categoryLabel = '';
-    switch (item.category) {
-      case 'keyboard':
-        categoryLabel = 'キーボード';
-        break;
-      case 'switch':
-        categoryLabel = 'スイッチ';
-        break;
-      case 'keycap':
-        categoryLabel = 'キーキャップ';
-        break;
-      case 'deskmat':
-        categoryLabel = 'デスクマット';
-        break;
-      default:
-        categoryLabel = item.category || '';
-    }
+    let categoryLabel = _getCategoryLabel(item.category);
     
     // 検索クエリがある場合、詳細コンテンツでもハイライト
     let title = item.title || '';
@@ -610,9 +695,11 @@ const FeedUI = (() => {
     if (mode === 'list') {
       DOM.itemsList.style.display = 'block';
       DOM.itemDetail.style.display = 'none';
+      DOM.sourceInfo.style.display = 'block';
     } else { // detail
       DOM.itemsList.style.display = 'none';
       DOM.itemDetail.style.display = 'block';
+      DOM.sourceInfo.style.display = 'none';
     }
   }
   
@@ -622,6 +709,12 @@ const FeedUI = (() => {
    */
   function _refreshFeed() {
     if (_isLoading) return;
+    
+    // オフライン時は更新しない
+    if (!navigator.onLine) {
+      alert('オフラインモードです。インターネット接続を確認してください。');
+      return;
+    }
     
     _isLoading = true;
     
@@ -634,12 +727,13 @@ const FeedUI = (() => {
     // ローディング表示
     if (_currentView === 'list' && DOM.loadingIndicator) {
       DOM.loadingIndicator.style.display = 'flex';
+      DOM.loadingIndicator.querySelector('p').textContent = 'ウェブから最新情報を読み込み中...';
     }
     
     // 復旧関数
     const resetUI = () => {
       if (DOM.refreshBtn) {
-        DOM.refreshBtn.disabled = false;
+        DOM.refreshBtn.disabled = !navigator.onLine;
         DOM.refreshBtn.classList.remove('loading');
       }
       
@@ -648,6 +742,7 @@ const FeedUI = (() => {
       }
       
       _isLoading = false;
+      _updateLastUpdatedInfo();
     };
     
     try {
@@ -673,14 +768,20 @@ const FeedUI = (() => {
       
       // 実行とエラーハンドリング
       updatePromise
-        .then(() => {
+        .then(hasNewItems => {
           // 表示を更新
           if (_currentView === 'list') {
             _renderItems();
           }
+          
+          // 新しいアイテムがあった場合は通知
+          if (hasNewItems) {
+            DOM.sourceInfo.querySelector('.feed-last-updated').textContent = '最終更新: たった今 - 新しい情報を追加しました';
+          }
         })
-        .catch(() => {
+        .catch(error => {
           // エラーメッセージ表示
+          console.error('フィード更新エラー:', error);
           alert('情報の更新中にエラーが発生しました。詳細はコンソールをご確認ください。');
         })
         .finally(() => {
@@ -688,13 +789,16 @@ const FeedUI = (() => {
           resetUI();
         });
         
-      // タイムアウト処理（10秒後に強制的に復旧）
+      // タイムアウト処理（20秒後に強制的に復旧）
       setTimeout(() => {
         if (_isLoading) {
           console.warn('FeedUI: 更新処理がタイムアウトしました');
           resetUI();
+          
+          // タイムアウトメッセージ
+          alert('情報の取得に時間がかかっています。ネットワーク接続を確認してください。');
         }
-      }, 10000);
+      }, 20000);
       
     } catch (error) {
       console.error('FeedUI: 予期せぬエラー', error);
