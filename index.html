@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KeyboardLab</title>
   <link rel="stylesheet" href="style.css">
+  <!-- 情報フィード用のスタイルシートを追加 -->
   <link rel="stylesheet" href="feed-style.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f46e5">
@@ -64,6 +65,7 @@
   </main>
   
   <script src="app.js"></script>
+  <!-- 情報フィード用のスクリプトを追加 -->
   <script src="keyboard-feed.js"></script>
   <script src="feed-ui.js"></script>
   <script>
@@ -73,11 +75,15 @@
       navigator.serviceWorker.register('./sw.js')
         .then(reg => {
           console.log('Service Worker登録成功:', reg.scope);
-          document.getElementById('sw-status').textContent = '登録済み';
+          if (document.getElementById('sw-status')) {
+            document.getElementById('sw-status').textContent = '登録済み';
+          }
         })
         .catch(err => {
           console.error('Service Worker登録失敗:', err);
-          document.getElementById('sw-status').textContent = '登録失敗';
+          if (document.getElementById('sw-status')) {
+            document.getElementById('sw-status').textContent = '登録失敗';
+          }
         });
     } else {
       console.warn('Service Workerはこのブラウザでサポートされていません');
@@ -90,10 +96,13 @@
     window.addEventListener('load', function() {
       console.log('ページ読み込み完了');
       
-      // 情報フィードの初期化
+      // 情報フィードの初期化 - feed-ui.jsが読み込まれていることを確認
       if (typeof FeedUI !== 'undefined') {
         console.log('FeedUIの初期化を開始');
-        FeedUI.init('feed-container');
+        // feed-containerが存在する場合のみ初期化を実行
+        if (document.getElementById('feed-container')) {
+          FeedUI.init('feed-container');
+        }
       } else {
         console.error('FeedUIモジュールが読み込まれていません');
       }
