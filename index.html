@@ -1,9 +1,77 @@
-<script src="app.js"></script>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KeyboardLab</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- 情報フィード用のスタイルシートを追加 -->
+  <link rel="stylesheet" href="feed-style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <!-- iOS用設定 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="KeyboardLab">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <!-- デバッグ用追加スクリプト -->
+  <script>
+    console.log('HTML読み込み開始');
+  </script>
+</head>
+<body>
+  <header>
+    <h1>KeyboardLab</h1>
+    <p class="version">バージョン 2.0.0</p>
+  </header>
+  
+  <main>
+    <div class="tabs">
+      <button class="tab active" data-tab="keyboards">キーボード</button>
+      <button class="tab" data-tab="switches">スイッチ</button>
+      <button class="tab" data-tab="keycaps">キーキャップ</button>
+      <button class="tab" data-tab="info">情報</button>
+    </div>
+    
+    <div class="content">
+      <div id="keyboards" class="tab-content active">
+        <div class="empty-state">
+          <p>キーボードがまだ登録されていません</p>
+          <button class="add-button">追加する</button>
+        </div>
+      </div>
+      
+      <div id="switches" class="tab-content">
+        <div class="empty-state">
+          <p>スイッチがまだ登録されていません</p>
+          <button class="add-button">追加する</button>
+        </div>
+      </div>
+      
+      <div id="keycaps" class="tab-content">
+        <div class="empty-state">
+          <p>キーキャップがまだ登録されていません</p>
+          <button class="add-button">追加する</button>
+        </div>
+      </div>
+      
+      <div id="info" class="tab-content">
+        <!-- ここに情報フィードが表示されます -->
+        <div id="feed-container" class="feed-container">
+          <!-- 情報フィードのコンテンツはJavaScriptで動的に生成されます -->
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <!-- アプリのコアスクリプト -->
+  <script src="app.js"></script>
   
   <!-- 情報フィード用のスクリプト - 依存関係の順番に注意 -->
   <script src="keyboard-feed.js"></script>
   <script src="feed-ui.js"></script>
   
+  <!-- サービスワーカーとアプリ初期化 -->
   <script>
     // Service Workerの登録
     if ('serviceWorker' in navigator) {
@@ -45,3 +113,6 @@
         }
       }
     });
+  </script>
+</body>
+</html>
