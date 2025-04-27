@@ -1,7 +1,7 @@
 /**
  * キーボード情報フィード機能
  * PWA上で動作するキーボード関連情報収集モジュール
- * バージョン: 1.0.1 - モックデータ内蔵版
+ * バージョン: 1.0.2 - 検索機能強化対応
  */
 
 // 情報フィードの名前空間
@@ -462,6 +462,31 @@ const KeyboardFeed = (() => {
   }
   
   /**
+   * テキスト検索に一致するアイテムを取得
+   * @public
+   * @param {string} searchText 検索テキスト
+   * @param {string} category カテゴリー名（'all'ですべて）
+   * @param {boolean} savedOnly 保存済みのみ取得する場合true
+   * @returns {Array} 検索結果のアイテム配列
+   */
+  function searchItems(searchText, category = 'all', savedOnly = false) {
+    if (!searchText) {
+      return getItems(category, savedOnly);
+    }
+    
+    const query = searchText.toLowerCase();
+    return getItems(category, savedOnly).filter(item => {
+      // 検索対象のフィールド
+      return (
+        (item.title && item.title.toLowerCase().includes(query)) ||
+        (item.content && item.content.toLowerCase().includes(query)) ||
+        (item.source && item.source.toLowerCase().includes(query)) ||
+        (item.category && item.category.toLowerCase().includes(query))
+      );
+    });
+  }
+  
+  /**
    * アイテムの保存状態を切り替え
    * @public
    * @param {string} itemId アイテムID
@@ -583,6 +608,7 @@ const KeyboardFeed = (() => {
     init,
     fetchFeeds,
     getItems,
+    searchItems, // 検索機能を追加
     toggleSaveItem,
     onUpdate,
     getSources,
