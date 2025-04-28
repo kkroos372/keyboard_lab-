@@ -1,9 +1,14 @@
 /**
  * KeyboardLab Service Worker
- * バージョン: 1.1.0 - 情報フィード機能対応
+ * バージョン: 1.2.0 - バックグラウンド更新機能強化
+ * 
+ * 変更履歴:
+ * - 1.2.0: バックグラウンド更新サポート強化、定期的な更新チェック機能
+ * - 1.1.0: 情報フィード機能対応
+ * - 1.0.0: 初期バージョン
  */
 
-const CACHE_NAME = 'keyboardlab-v1.1.0';
+const CACHE_NAME = 'keyboardlab-v1.2.0';
 const DEBUG = true;
 
 // キャッシュするアセット
@@ -18,8 +23,18 @@ const ASSETS = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './assets/placeholder.jpg'
+  './assets/placeholder.jpg',
+  './assets/keyboard.jpg',
+  './assets/switch.jpg',
+  './assets/keycap.jpg',
+  './assets/deskmat.jpg'
 ];
+
+// バックグラウンド更新の設定
+let bgUpdateTimer = null;
+let lastUpdateAttempt = null;
+const CHECK_INTERVAL = 15 * 60 * 1000; // 15分ごとにチェック
+const UPDATE_KEY = 'kblab_sw_lastupdate';
 
 // デバッグログ
 function logDebug(message) {
@@ -66,10 +81,137 @@ self.addEventListener('activate', event => {
       );
     }).then(() => {
       logDebug('アクティベート完了、コントロール開始');
+      
+      // 定期的な更新チェックを開始
+      _startBackgroundUpdateCheck();
+      
       return self.clients.claim();
     })
   );
 });
+
+// バックグラウンド更新チェックを開始
+function _startBackgroundUpdateCheck() {
+  // 既存のタイマーがあればクリア
+  if (bgUpdateTimer) {
+    clearInterval(bgUpdateTimer);
+  }
+  
+  // 最後の更新チェック時刻を取得
+  _getLastUpdateTime().then(lastUpdate => {
+    lastUpdateAttempt = lastUpdate || new Date();
+    
+    logDebug(`バックグラウンド更新チェックを開始します (${CHECK_INTERVAL / (60 * 1000)}分間隔)`);
+    logDebug(`前回の更新チェック: ${lastUpdateAttempt}`);
+    
+    // 定期的なチェックを設定
+    bgUpdateTimer = setInterval(_checkForUpdates, CHECK_INTERVAL);
+    
+    // 初回のチェックを実行（少し遅延）
+    setTimeout(_checkForUpdates, 30000);
+  });
+}
+
+// 最後の更新チェック時刻を取得
+function _getLastUpdateTime() {
+  return new Promise(resolve => {
+    // クライアント側のIndexedDBやCacheStorageに保存された値を読み込む
+    caches.open(CACHE_NAME).then(cache => {
+      cache.match(new Request(`sw-update-timestamp`)).then(response => {
+        if (response) {
+          response.text().then(timeStr => {
+            try {
+              resolve(new Date(timeStr));
+            } catch {
+              resolve(null);
+            }
+          }).catch(() => resolve(null));
+        } else {
+          resolve(null);
+        }
+      }).catch(() => resolve(null));
+    }).catch(() => resolve(null));
+  });
+}
+
+// 最後の更新チェック時刻を保存
+function _saveLastUpdateTime(date) {
+  const timeStr = date.toISOString();
+  
+  // キャッシュに保存
+  caches.open(CACHE_NAME).then(cache => {
+    cache.put(
+      new Request(`sw-update-timestamp`),
+      new Response(timeStr, {
+        headers: { 'Content-Type': 'text/plain' }
+      })
+    );
+  });
+  
+  return timeStr;
+}
+
+// 更新をチェック
+async function _checkForUpdates() {
+  // 現在時刻を記録
+  lastUpdateAttempt = new Date();
+  _saveLastUpdateTime(lastUpdateAttempt);
+  
+  logDebug('フィード更新をチェックしています...');
+  
+  // クライアントがあるか確認
+  const clients = await self.clients.matchAll();
+  
+  // アクティブなクライアントがなければ、SW自体でチェックを実行
+  if (clients.length === 0) {
+    logDebug('アクティブなクライアントがありません。サービスワーカーから更新を実行');
+    
+    // スクリプトファイルに変更がないか確認
+    try {
+      // keyboard-feed.jsが更新されているか確認
+      const feedResponse = await fetch('./keyboard-feed.js', {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      
+      if (feedResponse.ok) {
+        // キャッシュを更新
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put('./keyboard-feed.js', feedResponse);
+        logDebug('keyboard-feed.jsのキャッシュを更新しました');
+      }
+    } catch (error) {
+      logDebug('スクリプトファイルの更新チェックに失敗しました: ' + error);
+    }
+    
+    // フィードの更新確認用のURLをフェッチ（実際の実装ではAPIエンドポイントなど）
+    // 注: この実装はデモ用で、実際にはサーバーサイドAPIと通信する必要があります
+    try {
+      const response = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fkbdfans.com%2Fblogs%2Fnews.atom', {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      
+      if (response.ok) {
+        logDebug('フィードチェック成功。クライアント再接続時に更新されます');
+      } else {
+        logDebug('フィードチェック失敗: ' + response.status);
+      }
+    } catch (error) {
+      logDebug('フィードの更新チェックに失敗しました: ' + error);
+    }
+  } else {
+    // アクティブなクライアントがある場合は、クライアントに更新チェックをメッセージ送信
+    logDebug('アクティブなクライアントに更新チェックを依頼します');
+    
+    clients.forEach(client => {
+      client.postMessage({
+        action: 'checkUpdate',
+        timestamp: lastUpdateAttempt.toISOString()
+      });
+    });
+  }
+}
 
 // フェッチリクエスト時
 self.addEventListener('fetch', event => {
@@ -87,7 +229,8 @@ self.addEventListener('fetch', event => {
 
   // APIリクエストやJSONファイルのリクエストは常にネットワークを優先（情報フィード用）
   if (event.request.url.includes('_feed.json') || 
-      event.request.url.includes('/api/') || 
+      event.request.url.includes('/api/') ||
+      event.request.url.includes('rss2json.com') ||
       event.request.url.endsWith('.json')) {
     logDebug(`API/JSONリクエスト: ${event.request.url}`);
     event.respondWith(
@@ -174,11 +317,105 @@ self.addEventListener('message', event => {
   // フィード更新のメッセージ
   if (event.data && event.data.action === 'updateFeed') {
     logDebug('フィード更新リクエスト受信');
-    // ここではバックグラウンド更新は実装しない（クライアントサイドで処理）
+    
+    // 最後の更新時刻を更新
+    lastUpdateAttempt = new Date();
+    _saveLastUpdateTime(lastUpdateAttempt);
+    
     if (event.ports && event.ports[0]) {
-      event.ports[0].postMessage({ result: 'received' });
+      event.ports[0].postMessage({ 
+        result: 'received',
+        timestamp: lastUpdateAttempt.toISOString()
+      });
+    }
+  }
+  
+  // バックグラウンド更新設定のメッセージ
+  if (event.data && event.data.action === 'configBackgroundUpdate') {
+    const enabled = !!event.data.enabled;
+    logDebug(`バックグラウンド更新設定: ${enabled ? '有効' : '無効'}`);
+    
+    if (enabled) {
+      if (!bgUpdateTimer) {
+        _startBackgroundUpdateCheck();
+      }
+    } else {
+      if (bgUpdateTimer) {
+        clearInterval(bgUpdateTimer);
+        bgUpdateTimer = null;
+      }
+    }
+    
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ 
+        result: 'success',
+        enabled: enabled
+      });
     }
   }
 });
 
-logDebug('Service Worker 初期化完了 - 情報フィード対応版');
+// 定期的な同期イベント（Periodic Sync API対応ブラウザ向け）
+self.addEventListener('periodicsync', event => {
+  if (event.tag === 'feed-update') {
+    logDebug('定期的な同期イベント: feed-update');
+    event.waitUntil(_checkForUpdates());
+  }
+});
+
+// プッシュ通知イベント（Push API対応ブラウザ向け）
+self.addEventListener('push', event => {
+  logDebug('プッシュ通知受信');
+  
+  let notificationData = {};
+  
+  try {
+    if (event.data) {
+      notificationData = event.data.json();
+    }
+  } catch (e) {
+    logDebug('プッシュデータの解析に失敗: ' + e);
+  }
+  
+  // デフォルトの通知内容
+  const title = notificationData.title || 'KeyboardLab 更新';
+  const options = {
+    body: notificationData.body || 'キーボード情報が更新されました',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    data: {
+      url: notificationData.url || './'
+    }
+  };
+  
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+// 通知クリック時
+self.addEventListener('notificationclick', event => {
+  logDebug('通知クリック');
+  
+  event.notification.close();
+  
+  const urlToOpen = event.notification.data && event.notification.data.url ?
+    event.notification.data.url : './';
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then(windowClients => {
+      // 既存のウィンドウを探す
+      for (const client of windowClients) {
+        if (client.url === urlToOpen && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // 新しいウィンドウを開く
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});
+
+logDebug('Service Worker 初期化完了 - バックグラウンド更新強化版 v1.2.0');
