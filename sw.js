@@ -1,14 +1,15 @@
 /**
  * KeyboardLab Service Worker
- * バージョン: 1.2.0 - バックグラウンド更新機能強化
+ * バージョン: 3.0.0 - 分割キーボード対応版
  * 
  * 変更履歴:
+ * - 3.0.0: 分割キーボード・エルゴノミクスキーボード・無刻印キーキャップ対応
  * - 1.2.0: バックグラウンド更新サポート強化、定期的な更新チェック機能
  * - 1.1.0: 情報フィード機能対応
  * - 1.0.0: 初期バージョン
  */
 
-const CACHE_NAME = 'keyboardlab-v1.2.0';
+const CACHE_NAME = 'keyboardlab-v3.0.0';
 const DEBUG = true;
 
 // キャッシュするアセット
@@ -27,7 +28,11 @@ const ASSETS = [
   './assets/keyboard.jpg',
   './assets/switch.jpg',
   './assets/keycap.jpg',
-  './assets/deskmat.jpg'
+  './assets/deskmat.jpg',
+  // 新しいカテゴリのプレースホルダー画像
+  './assets/split.jpg',
+  './assets/ergonomic.jpg',
+  './assets/blank_keycap.jpg'
 ];
 
 // バックグラウンド更新の設定
@@ -199,6 +204,22 @@ async function _checkForUpdates() {
       }
     } catch (error) {
       logDebug('フィードの更新チェックに失敗しました: ' + error);
+    }
+    
+    // 分割キーボード関連のフィードも確認
+    try {
+      const splitResponse = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fergomechkeyboards%2F.rss', {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      
+      if (splitResponse.ok) {
+        logDebug('分割キーボードフィードチェック成功');
+      } else {
+        logDebug('分割キーボードフィードチェック失敗: ' + splitResponse.status);
+      }
+    } catch (error) {
+      logDebug('分割キーボードフィードの更新チェックに失敗しました: ' + error);
     }
   } else {
     // アクティブなクライアントがある場合は、クライアントに更新チェックをメッセージ送信
@@ -418,4 +439,4 @@ self.addEventListener('notificationclick', event => {
   );
 });
 
-logDebug('Service Worker 初期化完了 - バックグラウンド更新強化版 v1.2.0');
+logDebug('Service Worker 初期化完了 - 分割キーボード対応版 v3.0.0');
