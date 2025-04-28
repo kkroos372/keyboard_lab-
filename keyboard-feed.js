@@ -1,7 +1,11 @@
 /**
  * キーボード情報フィード機能
  * PWA上で動作するキーボード関連情報収集モジュール
- * バージョン: 3.1.0 - バックグラウンド更新機能追加
+ * バージョン: 4.0.0 - 分割キーボード・エルゴノミクス対応版
+ * 
+ * 変更履歴:
+ * - 4.0.0: 分割キーボード、エルゴノミクス、ブランクキーキャップのフィード追加
+ * - 3.1.0: バックグラウンド更新機能追加
  */
 
 // 情報フィードの名前空間
@@ -21,6 +25,7 @@ const KeyboardFeed = (() => {
   
   // フィードソース定義（実際のRSSフィードとAPI）
   const FEED_SOURCES = [
+    // 既存のソース
     {
       id: 'kbdfans',
       name: 'KBDfans Blog',
@@ -54,6 +59,72 @@ const KeyboardFeed = (() => {
       name: 'Keebs News',
       url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.keebsnews.com%2Frss',
       category: 'keyboard',
+      parser: 'rss2json'
+    },
+    
+    // 分割キーボード関連ソース追加
+    {
+      id: 'splitkb',
+      name: 'SplitKB',
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fsplitkb.com%2Fblogs%2Fnews%2Ffeed.atom',
+      category: 'split',
+      parser: 'rss2json'
+    },
+    {
+      id: 'ergomech_reddit',
+      name: 'r/ErgoMechKeyboards',
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fergomechkeyboards%2F.rss',
+      category: 'ergonomic',
+      parser: 'rss2json'
+    },
+    {
+      id: 'olkb',
+      name: 'OLKB',
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Folkb.com%2Fblogs%2Fnews%2Ffeed.atom',
+      category: 'split',
+      parser: 'rss2json'
+    },
+    {
+      id: 'keeb_io',
+      name: 'Keebio',
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fkeeb.io%2Fblogs%2Fnews%2Ffeed.atom',
+      category: 'split',
+      parser: 'rss2json'
+    },
+    {
+      id: 'littlekeyboards',
+      name: 'Little Keyboards',
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Flittlekeyboards.com%2Fblogs%2Fbuild-guides%2Ffeed.atom',
+      category: 'split',
+      parser: 'rss2json'
+    },
+    {
+      id: 'ergodox',
+      name: 'Ergodox EZ',
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fblog.ergodox-ez.com%2Ffeed',
+      category: 'ergonomic',
+      parser: 'rss2json'
+    },
+    {
+      id: 'corne_reddit',
+      name: 'r/crkbd',
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fcrkbd%2F.rss',
+      category: 'split',
+      parser: 'rss2json'
+    },
+    {
+      id: 'blank_keycaps',
+      name: 'Blank Keycaps',
+      // カスタム検索フィード（実際のURLに置き換える必要あり）
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fnews.google.com%2Frss%2Fsearch%3Fq%3Dblank%2Bkeycaps',
+      category: 'blank_keycap',
+      parser: 'rss2json'
+    },
+    {
+      id: 'keyboardio',
+      name: 'Keyboardio',
+      url: 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fblog.keyboard.io%2Ffeed',
+      category: 'ergonomic',
       parser: 'rss2json'
     }
   ];
@@ -99,6 +170,40 @@ const KeyboardFeed = (() => {
       image: DEFAULT_IMAGE,
       category: 'switch',
       source: 'キースイッチ.jp',
+      saved: false
+    },
+    // 分割キーボード関連のモックデータを追加
+    {
+      id: 'corne_1',
+      title: 'Corne V4 最新版レビュー',
+      date: '2025-04-18',
+      content: '人気の分割キーボード「Corne V4」の最新バージョンをレビュー。従来モデルから大幅に改良され、組み立てやすさが向上しています。特にPCBの設計変更により、はんだ付けが簡単になり、初心者でも挑戦しやすくなりました。また、ワイヤレス対応の準備もされており、Nice!nano等のコントローラーで簡単にBluetooth接続が可能です。エルゴノミクス設計と42キーの最小限のレイアウトで、効率的なタイピングが可能です。',
+      url: 'https://example.com/corne-v4-review',
+      image: './assets/keyboard.jpg',
+      category: 'split',
+      source: 'エルゴキーボード研究所',
+      saved: false
+    },
+    {
+      id: 'blank_1',
+      title: '無刻印キーキャップセット新発売',
+      date: '2025-04-17',
+      content: '高品質な無刻印（ブランク）PBTキーキャップの新シリーズが発売開始。DSAプロファイルで、分割キーボードを含む様々なレイアウトに対応。全9色展開で、カラーミックスも可能です。特に自作キーボードユーザーに人気のミニマルデザインで、カスタムレイアウトにも最適です。耐久性に優れたPBT素材を使用しており、長期間の使用でも色あせや光沢が出にくいのが特徴です。',
+      url: 'https://example.com/blank-keycaps-new-release',
+      image: './assets/keycap.jpg',
+      category: 'blank_keycap',
+      source: 'キーキャップハウス',
+      saved: false
+    },
+    {
+      id: 'ergo_1',
+      title: 'エルゴノミクスキーボードが肩こりに与える影響の研究',
+      date: '2025-04-21',
+      content: 'エルゴノミクスキーボードの使用が長時間のタイピング時の肩こりや手首の負担に与える影響についての最新研究結果が公開されました。分割型エルゴノミクスキーボードを3ヶ月間使用したグループでは、従来型キーボードユーザーと比較して、肩こりの症状が約40%減少したとのこと。特に、適切な角度調整と手首の自然な位置を保持できるデザインが重要であることが示されています。キーボードの位置や高さ、傾斜角度なども詳しく分析されており、最適なセットアップ方法も紹介されています。',
+      url: 'https://example.com/ergonomic-keyboard-research',
+      image: './assets/keyboard.jpg',
+      category: 'ergonomic',
+      source: 'キーボード医学ジャーナル',
       saved: false
     }
   ];
@@ -255,8 +360,36 @@ const KeyboardFeed = (() => {
         const title = (item.title || '').toLowerCase();
         const content = (item.content || item.description || '').toLowerCase();
         
-        // カテゴリ推測ロジック
+        // カテゴリ推測ロジック - 既存のものを拡張
         if (
+          title.includes('split') || content.includes('split') ||
+          title.includes('分割') || content.includes('分割') ||
+          title.includes('corne') || content.includes('corne') ||
+          title.includes('crkbd') || content.includes('crkbd') ||
+          title.includes('lily58') || content.includes('lily58') ||
+          title.includes('sofle') || content.includes('sofle') ||
+          title.includes('ergodash') || content.includes('ergodash') ||
+          title.includes('ergodox') || content.includes('ergodox') ||
+          title.includes('dactyl') || content.includes('dactyl') ||
+          title.includes('kyria') || content.includes('kyria') ||
+          title.includes('nyquist') || content.includes('nyquist') ||
+          title.includes('iris') || content.includes('iris')
+        ) {
+          category = 'split';
+        } else if (
+          title.includes('ergonomic') || content.includes('ergonomic') ||
+          title.includes('エルゴノミクス') || content.includes('エルゴノミクス') ||
+          title.includes('エルゴ') || content.includes('エルゴ') ||
+          title.includes('人間工学') || content.includes('人間工学')
+        ) {
+          category = 'ergonomic';
+        } else if (
+          title.includes('blank keycap') || content.includes('blank keycap') ||
+          title.includes('無刻印') || content.includes('無刻印') ||
+          title.includes('ブランク') || content.includes('ブランク')
+        ) {
+          category = 'blank_keycap';
+        } else if (
           title.includes('switch') || content.includes('switch') ||
           title.includes('スイッチ') || content.includes('スイッチ')
         ) {
@@ -890,4 +1023,4 @@ const KeyboardFeed = (() => {
 })();
 
 // モジュールの存在確認用（デバッグ用）
-console.log('KeyboardFeed: モジュールが読み込まれました - バックグラウンド更新対応版');
+console.log('KeyboardFeed: モジュールが読み込まれました - 分割キーボード対応版');
