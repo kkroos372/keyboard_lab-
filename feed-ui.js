@@ -1,7 +1,11 @@
 /**
  * キーボード情報フィードUI
  * KeyboardLabアプリのフィード表示UI実装
- * バージョン: 3.1.0 - バックグラウンド更新機能UI追加
+ * バージョン: 4.0.0 - 分割キーボード・エルゴノミクス対応版
+ * 
+ * 変更履歴:
+ * - 4.0.0: 分割キーボード、エルゴノミクス、ブランクキーキャップのカテゴリ追加
+ * - 3.1.0: バックグラウンド更新機能UI追加
  */
 
 const FeedUI = (() => {
@@ -85,7 +89,7 @@ const FeedUI = (() => {
     preloadImage.src = DEFAULT_IMAGE;
     
     // カテゴリ別画像も読み込み
-    const categories = ['keyboard', 'switch', 'keycap', 'deskmat'];
+    const categories = ['keyboard', 'switch', 'keycap', 'deskmat', 'split', 'ergonomic', 'blank_keycap'];
     categories.forEach(category => {
       const img = new Image();
       img.src = `./assets/${category}.jpg`;
@@ -168,9 +172,12 @@ const FeedUI = (() => {
       
       <div class="feed-tabs" id="feed-category-tabs">
         <button class="feed-tab active" data-category="all">すべて</button>
-        <button class="feed-tab" data-category="keyboard">キーボード</button>
+        <button class="feed-tab" data-category="split">分割キーボード</button>
+        <button class="feed-tab" data-category="ergonomic">エルゴノミクス</button>
+        <button class="feed-tab" data-category="keyboard">一般キーボード</button>
         <button class="feed-tab" data-category="switch">スイッチ</button>
         <button class="feed-tab" data-category="keycap">キーキャップ</button>
+        <button class="feed-tab" data-category="blank_keycap">無刻印キーキャップ</button>
         <button class="feed-tab" data-category="deskmat">デスクマット</button>
       </div>
       
@@ -540,6 +547,12 @@ const FeedUI = (() => {
           return './assets/keycap.jpg';
         case 'deskmat':
           return './assets/deskmat.jpg';
+        case 'split':
+          return './assets/split.jpg';
+        case 'ergonomic':
+          return './assets/ergonomic.jpg';
+        case 'blank_keycap':
+          return './assets/blank_keycap.jpg';
         default:
           return DEFAULT_IMAGE;
       }
@@ -576,7 +589,7 @@ const FeedUI = (() => {
     let categoryLabel = '';
     switch (item.category) {
       case 'keyboard':
-        categoryLabel = 'キーボード';
+        categoryLabel = '一般キーボード';
         break;
       case 'switch':
         categoryLabel = 'スイッチ';
@@ -586,6 +599,15 @@ const FeedUI = (() => {
         break;
       case 'deskmat':
         categoryLabel = 'デスクマット';
+        break;
+      case 'split':
+        categoryLabel = '分割キーボード';
+        break;
+      case 'ergonomic':
+        categoryLabel = 'エルゴノミクス';
+        break;
+      case 'blank_keycap':
+        categoryLabel = '無刻印キーキャップ';
         break;
       default:
         categoryLabel = item.category || '';
@@ -661,7 +683,7 @@ const FeedUI = (() => {
     let categoryLabel = '';
     switch (item.category) {
       case 'keyboard':
-        categoryLabel = 'キーボード';
+        categoryLabel = '一般キーボード';
         break;
       case 'switch':
         categoryLabel = 'スイッチ';
@@ -671,6 +693,15 @@ const FeedUI = (() => {
         break;
       case 'deskmat':
         categoryLabel = 'デスクマット';
+        break;
+      case 'split':
+        categoryLabel = '分割キーボード';
+        break;
+      case 'ergonomic':
+        categoryLabel = 'エルゴノミクス';
+        break;
+      case 'blank_keycap':
+        categoryLabel = '無刻印キーキャップ';
         break;
       default:
         categoryLabel = item.category || '';
