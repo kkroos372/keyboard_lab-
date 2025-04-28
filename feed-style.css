@@ -33,3 +33,270 @@
 .feed-notification-hide {
   animation: slideOut 0.3s ease-in forwards;
 }
+
+/* バックグラウンド更新設定パネル */
+.feed-settings-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: white;
+  z-index: 100;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.feed-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.feed-settings-header h3 {
+  font-size: 1.2rem;
+  margin: 0;
+  color: #111827;
+}
+
+.feed-settings-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6b7280;
+  line-height: 1;
+  padding: 0 0.5rem;
+}
+
+.feed-settings-content {
+  padding: 0.5rem 0;
+}
+
+.feed-settings-group {
+  margin-bottom: 1.5rem;
+}
+
+.feed-setting-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.feed-toggle-slider {
+  position: relative;
+  display: inline-block;
+  width: 3rem;
+  height: 1.5rem;
+  background-color: #e5e7eb;
+  border-radius: 1.5rem;
+  transition: 0.2s;
+}
+
+.feed-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 1.2rem;
+  width: 1.2rem;
+  left: 0.15rem;
+  bottom: 0.15rem;
+  background-color: white;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+input:checked + .feed-toggle-slider {
+  background-color: #4f46e5;
+}
+
+input:checked + .feed-toggle-slider:before {
+  transform: translateX(1.5rem);
+}
+
+.feed-setting-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.feed-setting-description {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.feed-select {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 0.5rem;
+  min-width: 100px;
+  font-size: 0.9rem;
+}
+
+.feed-settings-footer {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f3f4f6;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.feed-last-update {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* ネットワーク状態表示 */
+.feed-network-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.feed-network-type {
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background-color: #f3f4f6;
+}
+
+/* ネットワーク状態の色分け */
+.feed-network-type.excellent {
+  background-color: #d1fae5;
+  color: #047857;
+}
+
+.feed-network-type.good {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.feed-network-type.moderate {
+  background-color: #fef9c3;
+  color: #a16207;
+}
+
+.feed-network-type.poor {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.feed-network-type.offline {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.feed-network-type.save-data {
+  background-color: #ede9fe;
+  color: #6d28d9;
+}
+
+/* 設定ボタン */
+.feed-settings-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border-radius: 4px;
+}
+
+.feed-settings-btn:hover {
+  background-color: #f3f4f6;
+  color: #4f46e5;
+}
+
+/* バッテリー最適化設定 */
+.feed-battery-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.feed-battery-level {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.feed-battery-icon {
+  margin-right: 0.25rem;
+}
+
+.feed-battery-low {
+  color: #b91c1c;
+}
+
+.feed-battery-medium {
+  color: #a16207;
+}
+
+.feed-battery-high {
+  color: #047857;
+}
+
+.feed-battery-charging {
+  color: #0369a1;
+}
+
+/* 更新ボタンのローディング状態 */
+.feed-refresh-btn.loading {
+  position: relative;
+  color: transparent;
+}
+
+.feed-refresh-btn.loading svg {
+  animation: spin 1s linear infinite;
+  opacity: 0.7;
+}
+
+.feed-refresh-btn.loading:after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(79, 70, 229, 0.2);
+  border-radius: 50%;
+  border-top-color: #4f46e5;
+  animation: spin 1s linear infinite;
+}
+
+/* フィード設定パネルのレスポンシブ対応 */
+@media (min-width: 640px) {
+  .feed-settings-panel {
+    top: 2rem;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 500px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    max-height: 80vh;
+  }
+}
+
+/* 通知表示のレスポンシブ対応 */
+@media (max-width: 640px) {
+  .feed-notification {
+    width: 90%;
+    font-size: 0.85rem;
+    padding: 0.6rem 1rem;
+  }
+}
