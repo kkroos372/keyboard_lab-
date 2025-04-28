@@ -1,3 +1,8 @@
+/* 
+ * キーボード情報フィードスタイル
+ * バージョン: 4.0.0 - 分割キーボード・エルゴノミクス対応版
+ */
+
 /* アニメーション */
 @keyframes spin {
   0% { transform: rotate(0deg); }
@@ -277,6 +282,73 @@ input:checked + .feed-toggle-slider:before {
   animation: spin 1s linear infinite;
 }
 
+/* フィードタブのレイアウト調整（新しいカテゴリ用） */
+.feed-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.3rem;
+}
+
+.feed-tab {
+  flex: 0 0 auto;
+  padding: 0.5rem 0.75rem;
+  background-color: #f3f4f6;
+  border-radius: 2rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  white-space: nowrap;
+  border: none;
+  color: #4b5563;
+}
+
+.feed-tab:hover {
+  background-color: #e5e7eb;
+}
+
+.feed-tab.active {
+  background-color: #4f46e5;
+  color: white;
+}
+
+/* カテゴリ別カラースタイル */
+.feed-item-category {
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+.feed-item-category:contains('分割キーボード'), 
+.feed-detail-category:contains('分割キーボード') {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.feed-item-category:contains('エルゴノミクス'),
+.feed-detail-category:contains('エルゴノミクス') {
+  background-color: #c7d2fe;
+  color: #3730a3;
+}
+
+.feed-item-category:contains('無刻印キーキャップ'),
+.feed-detail-category:contains('無刻印キーキャップ') {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+/* 検索ハイライト */
+.feed-search-highlight {
+  background-color: #fef08a;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
 /* フィード設定パネルのレスポンシブ対応 */
 @media (min-width: 640px) {
   .feed-settings-panel {
@@ -290,13 +362,40 @@ input:checked + .feed-toggle-slider:before {
     border: 1px solid #e5e7eb;
     max-height: 80vh;
   }
+  
+  .feed-tabs {
+    flex-wrap: nowrap;
+    overflow-x: hidden;
+  }
 }
 
-/* 通知表示のレスポンシブ対応 */
+/* モバイル対応の強化 */
 @media (max-width: 640px) {
+  .feed-tab {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+  }
+  
   .feed-notification {
     width: 90%;
     font-size: 0.85rem;
     padding: 0.6rem 1rem;
+  }
+  
+  .feed-item {
+    flex-direction: column;
+  }
+  
+  .feed-item-image {
+    width: 100%;
+    height: 150px;
+    margin-right: 0;
+    margin-bottom: 0.5rem;
+  }
+  
+  .feed-item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 }
