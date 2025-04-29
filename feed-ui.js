@@ -1,9 +1,10 @@
 /**
  * キーボード情報フィードUI
  * KeyboardLabアプリのフィード表示UI実装
- * バージョン: 4.0.0 - 分割キーボード・エルゴノミクス対応版
+ * バージョン: 4.1.0 - キーボードショップ情報対応版
  * 
  * 変更履歴:
+ * - 4.1.0: キーボードショップ情報のカテゴリとUIを追加
  * - 4.0.0: 分割キーボード、エルゴノミクス、ブランクキーキャップのカテゴリ追加
  * - 3.1.0: バックグラウンド更新機能UI追加
  */
@@ -89,7 +90,11 @@ const FeedUI = (() => {
     preloadImage.src = DEFAULT_IMAGE;
     
     // カテゴリ別画像も読み込み
-    const categories = ['keyboard', 'switch', 'keycap', 'deskmat', 'split', 'ergonomic', 'blank_keycap'];
+    const categories = [
+      'keyboard', 'switch', 'keycap', 'deskmat', 
+      'split', 'ergonomic', 'blank_keycap', 
+      'shop', 'shop_jp', 'shop_global'
+    ];
     categories.forEach(category => {
       const img = new Image();
       img.src = `./assets/${category}.jpg`;
@@ -170,11 +175,36 @@ const FeedUI = (() => {
         </div>
       </div>
       
-      <div class="feed-tabs" id="feed-category-tabs">
+      <!-- メインカテゴリータブ -->
+      <div class="feed-tabs" id="feed-main-tabs">
+        <button class="feed-tab active" data-category="all">すべて</button>
+        <button class="feed-tab" data-category="shop_all">ショップ情報</button>
+        <button class="feed-tab" data-category="keyboards">キーボード</button>
+        <button class="feed-tab" data-category="accessories">アクセサリー</button>
+      </div>
+      
+      <!-- サブカテゴリータブ（ショップタブ選択時） -->
+      <div class="feed-tabs" id="feed-shop-tabs" style="display: none;">
+        <button class="feed-tab active" data-category="shop_all">すべて</button>
+        <button class="feed-tab" data-category="shop_jp_all">日本ショップ</button>
+        <button class="feed-tab" data-category="shop_global_all">海外ショップ</button>
+        <button class="feed-tab" data-category="product_type_new">新製品</button>
+        <button class="feed-tab" data-category="product_type_restock">再入荷</button>
+        <button class="feed-tab" data-category="product_type_sale">セール</button>
+        <button class="feed-tab" data-category="product_type_groupbuy">グループバイ</button>
+      </div>
+      
+      <!-- サブカテゴリータブ（キーボードタブ選択時） -->
+      <div class="feed-tabs" id="feed-keyboard-tabs" style="display: none;">
         <button class="feed-tab active" data-category="all">すべて</button>
         <button class="feed-tab" data-category="split">分割キーボード</button>
         <button class="feed-tab" data-category="ergonomic">エルゴノミクス</button>
         <button class="feed-tab" data-category="keyboard">一般キーボード</button>
+      </div>
+      
+      <!-- サブカテゴリータブ（アクセサリータブ選択時） -->
+      <div class="feed-tabs" id="feed-accessory-tabs" style="display: none;">
+        <button class="feed-tab active" data-category="all">すべて</button>
         <button class="feed-tab" data-category="switch">スイッチ</button>
         <button class="feed-tab" data-category="keycap">キーキャップ</button>
         <button class="feed-tab" data-category="blank_keycap">無刻印キーキャップ</button>
@@ -197,7 +227,10 @@ const FeedUI = (() => {
     // DOM要素への参照を設定
     DOM.itemsList = document.getElementById('feed-items-list');
     DOM.itemDetail = document.getElementById('feed-item-detail');
-    DOM.categoryTabs = document.getElementById('feed-category-tabs');
+    DOM.mainTabs = document.getElementById('feed-main-tabs');
+    DOM.shopTabs = document.getElementById('feed-shop-tabs');
+    DOM.keyboardTabs = document.getElementById('feed-keyboard-tabs');
+    DOM.accessoryTabs = document.getElementById('feed-accessory-tabs');
     DOM.refreshBtn = document.querySelector('#feed-refresh-btn');
     DOM.savedToggle = document.getElementById('feed-saved-only');
     DOM.loadingIndicator = document.getElementById('feed-loading');
@@ -208,7 +241,7 @@ const FeedUI = (() => {
     DOM.settingsPanel = document.getElementById('feed-settings-panel');
     
     // 要素の存在チェック
-    if (!DOM.itemsList || !DOM.itemDetail || !DOM.categoryTabs || 
+    if (!DOM.itemsList || !DOM.itemDetail || !DOM.mainTabs || 
         !DOM.refreshBtn || !DOM.savedToggle || !DOM.loadingIndicator || 
         !DOM.emptyMessage || !DOM.searchInput || !DOM.searchClearBtn ||
         !DOM.settingsBtn || !DOM.settingsPanel) {
@@ -216,11 +249,87 @@ const FeedUI = (() => {
       return;
     }
     
-    // カテゴリタブのクリックイベント
-    const tabs = DOM.categoryTabs.querySelectorAll('.feed-tab');
-    tabs.forEach(tab => {
+    // メインカテゴリタブのクリックイベント
+    const mainTabs = DOM.mainTabs.querySelectorAll('.feed-tab');
+    mainTabs.forEach(tab => {
+      tab.addEventListener('click', function() {
+        const mainCategory = this.getAttribute('data-category');
+        
+        // タブのアクティブ状態を更新
+        mainTabs.forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        
+        // サブカテゴリタブの表示/非表示を切り替え
+        DOM.shopTabs.style.display = mainCategory === 'shop_all' ? 'flex' : 'none';
+        DOM.keyboardTabs.style.display = mainCategory === 'keyboards' ? 'flex' : 'none';
+        DOM.accessoryTabs.style.display = mainCategory === 'accessories' ? 'flex' : 'none';
+        
+        // カテゴリを設定して再描画
+        if (mainCategory === 'shop_all') {
+          _setActiveCategory('shop_all');
+          // ショップタブのデフォルトタブをアクティブにする
+          const shopTabs = DOM.shopTabs.querySelectorAll('.feed-tab');
+          shopTabs.forEach(t => t.classList.remove('active'));
+          shopTabs[0].classList.add('active');
+        } else if (mainCategory === 'keyboards') {
+          _setActiveCategory('all');
+          // キーボードタブのデフォルトタブをアクティブにする
+          const keyboardTabs = DOM.keyboardTabs.querySelectorAll('.feed-tab');
+          keyboardTabs.forEach(t => t.classList.remove('active'));
+          keyboardTabs[0].classList.add('active');
+        } else if (mainCategory === 'accessories') {
+          _setActiveCategory('all');
+          // アクセサリータブのデフォルトタブをアクティブにする
+          const accessoryTabs = DOM.accessoryTabs.querySelectorAll('.feed-tab');
+          accessoryTabs.forEach(t => t.classList.remove('active'));
+          accessoryTabs[0].classList.add('active');
+        } else {
+          _setActiveCategory(mainCategory);
+        }
+      });
+    });
+    
+    // ショップカテゴリタブのクリックイベント
+    const shopTabs = DOM.shopTabs.querySelectorAll('.feed-tab');
+    shopTabs.forEach(tab => {
       tab.addEventListener('click', function() {
         const category = this.getAttribute('data-category');
+        
+        // タブのアクティブ状態を更新
+        shopTabs.forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        
+        // カテゴリを設定して再描画
+        _setActiveCategory(category);
+      });
+    });
+    
+    // キーボードカテゴリタブのクリックイベント
+    const keyboardTabs = DOM.keyboardTabs.querySelectorAll('.feed-tab');
+    keyboardTabs.forEach(tab => {
+      tab.addEventListener('click', function() {
+        const category = this.getAttribute('data-category');
+        
+        // タブのアクティブ状態を更新
+        keyboardTabs.forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        
+        // カテゴリを設定して再描画
+        _setActiveCategory(category);
+      });
+    });
+    
+    // アクセサリーカテゴリタブのクリックイベント
+    const accessoryTabs = DOM.accessoryTabs.querySelectorAll('.feed-tab');
+    accessoryTabs.forEach(tab => {
+      tab.addEventListener('click', function() {
+        const category = this.getAttribute('data-category');
+        
+        // タブのアクティブ状態を更新
+        accessoryTabs.forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        
+        // カテゴリを設定して再描画
         _setActiveCategory(category);
       });
     });
@@ -455,16 +564,6 @@ const FeedUI = (() => {
   function _setActiveCategory(category) {
     _currentCategory = category;
     
-    // タブの見た目を更新
-    const tabs = DOM.categoryTabs.querySelectorAll('.feed-tab');
-    tabs.forEach(tab => {
-      if (tab.getAttribute('data-category') === category) {
-        tab.classList.add('active');
-      } else {
-        tab.classList.remove('active');
-      }
-    });
-    
     // アイテムを再描画
     _renderItems();
   }
@@ -538,23 +637,48 @@ const FeedUI = (() => {
   function _validateImageUrl(imageUrl, category) {
     if (!imageUrl || imageUrl === 'undefined' || imageUrl === 'null') {
       // カテゴリに応じたプレースホルダー画像を返す
-      switch (category) {
-        case 'keyboard':
-          return './assets/keyboard.jpg';
-        case 'switch':
-          return './assets/switch.jpg';
-        case 'keycap':
-          return './assets/keycap.jpg';
-        case 'deskmat':
-          return './assets/deskmat.jpg';
-        case 'split':
+      // ショップカテゴリの場合
+      if (category.includes('shop_')) {
+        // ショップカテゴリのプレースホルダー画像
+        if (category.includes('_split')) {
           return './assets/split.jpg';
-        case 'ergonomic':
+        } else if (category.includes('_ergo')) {
           return './assets/ergonomic.jpg';
-        case 'blank_keycap':
+        } else if (category.includes('_switch')) {
+          return './assets/switch.jpg';
+        } else if (category.includes('_blank_keycap')) {
           return './assets/blank_keycap.jpg';
-        default:
-          return DEFAULT_IMAGE;
+        } else if (category.includes('_keycap')) {
+          return './assets/keycap.jpg';
+        } else {
+          if (category.includes('_jp')) {
+            return './assets/shop_jp.jpg';
+          } else if (category.includes('_global')) {
+            return './assets/shop_global.jpg';
+          } else {
+            return './assets/shop.jpg';
+          }
+        }
+      } else {
+        // 通常カテゴリのプレースホルダー画像
+        switch (category) {
+          case 'keyboard':
+            return './assets/keyboard.jpg';
+          case 'switch':
+            return './assets/switch.jpg';
+          case 'keycap':
+            return './assets/keycap.jpg';
+          case 'deskmat':
+            return './assets/deskmat.jpg';
+          case 'split':
+            return './assets/split.jpg';
+          case 'ergonomic':
+            return './assets/ergonomic.jpg';
+          case 'blank_keycap':
+            return './assets/blank_keycap.jpg';
+          default:
+            return DEFAULT_IMAGE;
+        }
       }
     }
     return imageUrl;
@@ -587,30 +711,89 @@ const FeedUI = (() => {
     const savedClass = item.saved ? 'saved' : '';
     
     let categoryLabel = '';
-    switch (item.category) {
-      case 'keyboard':
-        categoryLabel = '一般キーボード';
-        break;
-      case 'switch':
-        categoryLabel = 'スイッチ';
-        break;
-      case 'keycap':
-        categoryLabel = 'キーキャップ';
-        break;
-      case 'deskmat':
-        categoryLabel = 'デスクマット';
-        break;
-      case 'split':
-        categoryLabel = '分割キーボード';
-        break;
-      case 'ergonomic':
-        categoryLabel = 'エルゴノミクス';
-        break;
-      case 'blank_keycap':
-        categoryLabel = '無刻印キーキャップ';
-        break;
-      default:
-        categoryLabel = item.category || '';
+    let productTypeLabel = '';
+    
+    // カテゴリラベルの生成
+    if (item.category.startsWith('shop_')) {
+      // ショップ情報カテゴリ
+      if (item.category.includes('_jp')) {
+        // 日本のショップ
+        if (item.category.includes('_split')) {
+          categoryLabel = '日本ショップ: 分割KB';
+        } else if (item.category.includes('_ergo')) {
+          categoryLabel = '日本ショップ: エルゴノミクス';
+        } else if (item.category.includes('_switch')) {
+          categoryLabel = '日本ショップ: スイッチ';
+        } else if (item.category.includes('_blank_keycap')) {
+          categoryLabel = '日本ショップ: 無刻印キーキャップ';
+        } else if (item.category.includes('_keycap')) {
+          categoryLabel = '日本ショップ: キーキャップ';
+        } else {
+          categoryLabel = '日本ショップ';
+        }
+      } else if (item.category.includes('_global')) {
+        // 海外のショップ
+        if (item.category.includes('_split')) {
+          categoryLabel = '海外ショップ: 分割KB';
+        } else if (item.category.includes('_ergo')) {
+          categoryLabel = '海外ショップ: エルゴノミクス';
+        } else if (item.category.includes('_switch')) {
+          categoryLabel = '海外ショップ: スイッチ';
+        } else if (item.category.includes('_blank_keycap')) {
+          categoryLabel = '海外ショップ: 無刻印キーキャップ';
+        } else if (item.category.includes('_keycap')) {
+          categoryLabel = '海外ショップ: キーキャップ';
+        } else {
+          categoryLabel = '海外ショップ';
+        }
+      } else {
+        categoryLabel = 'ショップ情報';
+      }
+      
+      // 商品タイプラベルの生成
+      if (item.productType) {
+        switch (item.productType) {
+          case 'new':
+            productTypeLabel = '<span class="feed-product-type new">新製品</span>';
+            break;
+          case 'restock':
+            productTypeLabel = '<span class="feed-product-type restock">再入荷</span>';
+            break;
+          case 'sale':
+            productTypeLabel = '<span class="feed-product-type sale">セール</span>';
+            break;
+          case 'groupbuy':
+            productTypeLabel = '<span class="feed-product-type groupbuy">GB</span>';
+            break;
+        }
+      }
+    } else {
+      // 通常カテゴリ
+      switch (item.category) {
+        case 'keyboard':
+          categoryLabel = '一般キーボード';
+          break;
+        case 'switch':
+          categoryLabel = 'スイッチ';
+          break;
+        case 'keycap':
+          categoryLabel = 'キーキャップ';
+          break;
+        case 'deskmat':
+          categoryLabel = 'デスクマット';
+          break;
+        case 'split':
+          categoryLabel = '分割キーボード';
+          break;
+        case 'ergonomic':
+          categoryLabel = 'エルゴノミクス';
+          break;
+        case 'blank_keycap':
+          categoryLabel = '無刻印キーキャップ';
+          break;
+        default:
+          categoryLabel = item.category || '';
+      }
     }
     
     // 検索クエリがある場合、一致部分をハイライト
@@ -635,7 +818,10 @@ const FeedUI = (() => {
           <h3 class="feed-item-title">${title}</h3>
           <p class="feed-item-excerpt">${excerpt}</p>
           <div class="feed-item-footer">
-            <span class="feed-item-category">${categoryLabel}</span>
+            <div class="feed-item-tags">
+              <span class="feed-item-category">${categoryLabel}</span>
+              ${productTypeLabel}
+            </div>
             <button class="feed-item-save-btn" data-id="${item.id}">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="${item.saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
             </button>
@@ -681,30 +867,89 @@ const FeedUI = (() => {
     const itemUrl = _validateUrl(item.url);
     
     let categoryLabel = '';
-    switch (item.category) {
-      case 'keyboard':
-        categoryLabel = '一般キーボード';
-        break;
-      case 'switch':
-        categoryLabel = 'スイッチ';
-        break;
-      case 'keycap':
-        categoryLabel = 'キーキャップ';
-        break;
-      case 'deskmat':
-        categoryLabel = 'デスクマット';
-        break;
-      case 'split':
-        categoryLabel = '分割キーボード';
-        break;
-      case 'ergonomic':
-        categoryLabel = 'エルゴノミクス';
-        break;
-      case 'blank_keycap':
-        categoryLabel = '無刻印キーキャップ';
-        break;
-      default:
-        categoryLabel = item.category || '';
+    let productTypeLabel = '';
+    
+    // カテゴリラベルの生成
+    if (item.category.startsWith('shop_')) {
+      // ショップ情報カテゴリ
+      if (item.category.includes('_jp')) {
+        // 日本のショップ
+        if (item.category.includes('_split')) {
+          categoryLabel = '日本ショップ: 分割KB';
+        } else if (item.category.includes('_ergo')) {
+          categoryLabel = '日本ショップ: エルゴノミクス';
+        } else if (item.category.includes('_switch')) {
+          categoryLabel = '日本ショップ: スイッチ';
+        } else if (item.category.includes('_blank_keycap')) {
+          categoryLabel = '日本ショップ: 無刻印キーキャップ';
+        } else if (item.category.includes('_keycap')) {
+          categoryLabel = '日本ショップ: キーキャップ';
+        } else {
+          categoryLabel = '日本ショップ';
+        }
+      } else if (item.category.includes('_global')) {
+        // 海外のショップ
+        if (item.category.includes('_split')) {
+          categoryLabel = '海外ショップ: 分割KB';
+        } else if (item.category.includes('_ergo')) {
+          categoryLabel = '海外ショップ: エルゴノミクス';
+        } else if (item.category.includes('_switch')) {
+          categoryLabel = '海外ショップ: スイッチ';
+        } else if (item.category.includes('_blank_keycap')) {
+          categoryLabel = '海外ショップ: 無刻印キーキャップ';
+        } else if (item.category.includes('_keycap')) {
+          categoryLabel = '海外ショップ: キーキャップ';
+        } else {
+          categoryLabel = '海外ショップ';
+        }
+      } else {
+        categoryLabel = 'ショップ情報';
+      }
+      
+      // 商品タイプラベルの生成
+      if (item.productType) {
+        switch (item.productType) {
+          case 'new':
+            productTypeLabel = '<span class="feed-product-type new">新製品</span>';
+            break;
+          case 'restock':
+            productTypeLabel = '<span class="feed-product-type restock">再入荷</span>';
+            break;
+          case 'sale':
+            productTypeLabel = '<span class="feed-product-type sale">セール</span>';
+            break;
+          case 'groupbuy':
+            productTypeLabel = '<span class="feed-product-type groupbuy">GB</span>';
+            break;
+        }
+      }
+    } else {
+      // 通常カテゴリ
+      switch (item.category) {
+        case 'keyboard':
+          categoryLabel = '一般キーボード';
+          break;
+        case 'switch':
+          categoryLabel = 'スイッチ';
+          break;
+        case 'keycap':
+          categoryLabel = 'キーキャップ';
+          break;
+        case 'deskmat':
+          categoryLabel = 'デスクマット';
+          break;
+        case 'split':
+          categoryLabel = '分割キーボード';
+          break;
+        case 'ergonomic':
+          categoryLabel = 'エルゴノミクス';
+          break;
+        case 'blank_keycap':
+          categoryLabel = '無刻印キーキャップ';
+          break;
+        default:
+          categoryLabel = item.category || '';
+      }
     }
     
     // 検索クエリがある場合、詳細コンテンツでもハイライト
@@ -740,7 +985,10 @@ const FeedUI = (() => {
       <div class="feed-detail-meta">
         <span class="feed-detail-source">${item.source || ''}</span>
         <span class="feed-detail-date">${formattedDate}</span>
-        <span class="feed-detail-category">${categoryLabel}</span>
+        <div class="feed-detail-tags">
+          <span class="feed-detail-category">${categoryLabel}</span>
+          ${productTypeLabel}
+        </div>
       </div>
       
       <h2 class="feed-detail-title">${title}</h2>
