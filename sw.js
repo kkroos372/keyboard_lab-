@@ -1,15 +1,17 @@
 /**
  * KeyboardLab Service Worker
- * バージョン: 3.0.0 - 分割キーボード対応版
+ * バージョン: 4.1.0 - キーボードショップ情報対応版
  * 
  * 変更履歴:
+ * - 4.1.0: キーボードショップ情報対応機能追加
+ * - 4.0.0: 分割キーボード、エルゴノミクス、ブランクキーキャップのフィード追加
  * - 3.0.0: 分割キーボード・エルゴノミクスキーボード・無刻印キーキャップ対応
  * - 1.2.0: バックグラウンド更新サポート強化、定期的な更新チェック機能
  * - 1.1.0: 情報フィード機能対応
  * - 1.0.0: 初期バージョン
  */
 
-const CACHE_NAME = 'keyboardlab-v3.0.0';
+const CACHE_NAME = 'keyboardlab-v4.1.0';
 const DEBUG = true;
 
 // キャッシュするアセット
@@ -29,10 +31,14 @@ const ASSETS = [
   './assets/switch.jpg',
   './assets/keycap.jpg',
   './assets/deskmat.jpg',
-  // 新しいカテゴリのプレースホルダー画像
+  // 分割キーボード対応版のアセット
   './assets/split.jpg',
   './assets/ergonomic.jpg',
-  './assets/blank_keycap.jpg'
+  './assets/blank_keycap.jpg',
+  // ショップ情報対応版の新アセット
+  './assets/shop.jpg',
+  './assets/shop_jp.jpg',
+  './assets/shop_global.jpg'
 ];
 
 // バックグラウンド更新の設定
@@ -189,24 +195,36 @@ async function _checkForUpdates() {
       logDebug('スクリプトファイルの更新チェックに失敗しました: ' + error);
     }
     
-    // フィードの更新確認用のURLをフェッチ（実際の実装ではAPIエンドポイントなど）
-    // 注: この実装はデモ用で、実際にはサーバーサイドAPIと通信する必要があります
+    // キーボードショップ情報のフィードをチェック
     try {
-      const response = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fkbdfans.com%2Fblogs%2Fnews.atom', {
+      // 日本のショップ情報をチェック
+      const jpShopResponse = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fyushakobo.jp%2Fblogs%2Fnews%2Frss', {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache' }
       });
       
-      if (response.ok) {
-        logDebug('フィードチェック成功。クライアント再接続時に更新されます');
+      if (jpShopResponse.ok) {
+        logDebug('日本のキーボードショップ情報チェック成功');
       } else {
-        logDebug('フィードチェック失敗: ' + response.status);
+        logDebug('日本のキーボードショップ情報チェック失敗: ' + jpShopResponse.status);
+      }
+      
+      // 海外のショップ情報をチェック
+      const globalShopResponse = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fkbdfans.com%2Fblogs%2Fnews.atom', {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      
+      if (globalShopResponse.ok) {
+        logDebug('海外のキーボードショップ情報チェック成功');
+      } else {
+        logDebug('海外のキーボードショップ情報チェック失敗: ' + globalShopResponse.status);
       }
     } catch (error) {
-      logDebug('フィードの更新チェックに失敗しました: ' + error);
+      logDebug('キーボードショップ情報の更新チェックに失敗しました: ' + error);
     }
     
-    // 分割キーボード関連のフィードも確認
+    // 分割キーボード関連のフィードもチェック
     try {
       const splitResponse = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fergomechkeyboards%2F.rss', {
         cache: 'no-store',
@@ -374,6 +392,26 @@ self.addEventListener('message', event => {
       });
     }
   }
+  
+  // ショップ情報カテゴリ更新のメッセージ
+  if (event.data && event.data.action === 'updateShopInfo') {
+    logDebug('ショップ情報更新リクエスト受信');
+    
+    // 最後の更新時刻を更新
+    lastUpdateAttempt = new Date();
+    _saveLastUpdateTime(lastUpdateAttempt);
+    
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ 
+        result: 'success',
+        message: 'ショップ情報の更新を開始します',
+        timestamp: lastUpdateAttempt.toISOString()
+      });
+    }
+    
+    // 更新チェックを実行
+    _checkForUpdates();
+  }
 });
 
 // 定期的な同期イベント（Periodic Sync API対応ブラウザ向け）
@@ -439,4 +477,4 @@ self.addEventListener('notificationclick', event => {
   );
 });
 
-logDebug('Service Worker 初期化完了 - 分割キーボード対応版 v3.0.0');
+logDebug('Service Worker 初期化完了 - キーボードショップ情報対応版 v4.1.0');
