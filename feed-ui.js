@@ -1,9 +1,10 @@
 /**
  * キーボード情報フィードUI
  * KeyboardLabアプリのフィード表示UI実装
- * バージョン: 4.1.0 - キーボードショップ情報対応版
+ * バージョン: 4.1.1 - 初期化処理改善版
  * 
  * 変更履歴:
+ * - 4.1.1: 初期化処理の改善と重複初期化防止機能の追加
  * - 4.1.0: キーボードショップ情報のカテゴリとUIを追加
  * - 4.0.0: 分割キーボード、エルゴノミクス、ブランクキーキャップのカテゴリ追加
  * - 3.1.0: バックグラウンド更新機能UI追加
@@ -17,6 +18,7 @@ const FeedUI = (() => {
   let _isLoading = false;
   let _savedOnly = false;
   let _searchQuery = ''; // 検索クエリを保持する変数
+  let _isInitialized = false; // 初期化済みフラグを追加
   
   // デフォルトのプレースホルダー画像
   const DEFAULT_IMAGE = './assets/placeholder.jpg';
@@ -43,26 +45,33 @@ const FeedUI = (() => {
    * 初期化処理
    * @public
    * @param {string} containerId フィードUIを配置するコンテナのID
+   * @returns {boolean} 初期化成功時にtrueを返す
    */
   function init(containerId) {
+    // 既に初期化済みの場合は早期リターン
+    if (_isInitialized) {
+      console.log('FeedUI: 既に初期化済みです');
+      return true;
+    }
+    
     console.log('FeedUI: 初期化中...');
     
     // コンテナを取得
     DOM.container = document.getElementById(containerId);
     if (!DOM.container) {
       console.error(`FeedUI: コンテナ要素 "${containerId}" が見つかりません`);
-      return;
+      return false;
+    }
+    
+    // KeyboardFeedモジュールの確認
+    if (typeof KeyboardFeed === 'undefined') {
+      console.error('FeedUI: KeyboardFeedモジュールが見つかりません');
+      DOM.container.innerHTML = '<p>情報フィード機能を読み込めませんでした。</p>';
+      return false;
     }
     
     // UIを構築
     _buildUI();
-    
-    // キーボードフィードモジュールの確認
-    if (typeof KeyboardFeed === 'undefined') {
-      console.error('FeedUI: KeyboardFeedモジュールが見つかりません');
-      DOM.container.innerHTML = '<p>情報フィード機能を読み込めませんでした。</p>';
-      return;
-    }
     
     // 新しいアイテム通知のリスナー登録
     if (typeof KeyboardFeed.onNewItems === 'function') {
@@ -77,7 +86,20 @@ const FeedUI = (() => {
     // 初期データの表示
     _renderItems();
     
+    // 初期化完了フラグをセット
+    _isInitialized = true;
+    
     console.log('FeedUI: 初期化完了');
+    return true;
+  }
+  
+  /**
+   * 初期化状態を確認
+   * @public
+   * @returns {boolean} 初期化済みの場合true
+   */
+  function isInitialized() {
+    return _isInitialized;
   }
   
   /**
@@ -1302,6 +1324,7 @@ const FeedUI = (() => {
   // パブリックAPI
   return {
     init,
+    isInitialized,
     refresh: _refreshFeed
   };
 })();
@@ -1325,11 +1348,13 @@ document.addEventListener('DOMContentLoaded', function() {
       infoTab.appendChild(feedContainer);
     }
     
-    // フィードUIを初期化
+    // FeedUIが KeyboardFeed モジュールの完全な初期化を待つために少し遅延
     setTimeout(() => {
       console.log('FeedUI: 初期化を開始します');
-      FeedUI.init('feed-container');
-    }, 300); // 少し遅延させてKeyboardFeedの読み込みを確実にする
+      if (!FeedUI.isInitialized()) {
+        FeedUI.init('feed-container');
+      }
+    }, 500);
   } else {
     console.log('FeedUI: infoタブが見つかりません');
   }
