@@ -1,9 +1,10 @@
 /**
  * キーボード情報フィード機能
  * PWA上で動作するキーボード関連情報収集モジュール
- * バージョン: 4.1.0 - キーボードショップ情報対応版
+ * バージョン: 4.1.1 - 初期化処理改善版
  * 
  * 変更履歴:
+ * - 4.1.1: 初期化処理の安定性向上とモックデータの追加
  * - 4.1.0: キーボードショップ情報ソース追加
  * - 4.0.0: 分割キーボード、エルゴノミクス、ブランクキーキャップのフィード追加
  * - 3.1.0: バックグラウンド更新機能追加
@@ -20,6 +21,7 @@ const KeyboardFeed = (() => {
   let _updateInterval = 30 * 60 * 1000; // 更新間隔（デフォルトは30分）
   let _backgroundUpdateEnabled = false; // バックグラウンド更新の有効/無効
   let _onNewItemsCallbacks = []; // 新しいアイテムを取得したときのコールバック
+  let _isInitialized = false; // 初期化フラグを追加
   
   // プレースホルダー画像パス
   const DEFAULT_IMAGE = './assets/placeholder.jpg';
@@ -167,8 +169,66 @@ const KeyboardFeed = (() => {
     SETTINGS: 'kblab_feed_settings'
   };
   
-  // モックデータ（最小限のプレースホルダー）
-  const MOCK_ITEMS = []; // サンプル記事を削除
+  // モックデータ（デバッグモード用のサンプル）
+  const MOCK_ITEMS = [
+    {
+      id: 'mock_split_1',
+      title: 'Corne Keyboard バージョン3.0.0発表',
+      date: new Date().toISOString(),
+      content: '人気の分割キーボード「Corne」の最新バージョンが発表されました。新バージョンでは、Kailh Choc V2スイッチの対応や、配線の最適化が行われています。',
+      url: 'https://www.mechanical-keyboard.org/',
+      image: './assets/split.jpg',
+      category: 'split',
+      source: 'SplitKB',
+      saved: false
+    },
+    {
+      id: 'mock_shop_jp_1',
+      title: '遊舎工房で新しいキーキャップセット入荷',
+      date: new Date().toISOString(),
+      content: '遊舎工房にて、新しいMT3プロファイルのキーキャップセットが入荷しました。日本語レイアウトにも対応しており、分割キーボード用のキットも用意されています。',
+      url: 'https://www.mechanical-keyboard.org/',
+      image: './assets/shop_jp.jpg',
+      category: 'shop_jp_keycap',
+      source: '遊舎工房',
+      productType: 'new',
+      saved: false
+    },
+    {
+      id: 'mock_shop_global_1',
+      title: 'KBDfans 新しいスイッチ「KBD Panda」発売',
+      date: new Date().toISOString(),
+      content: 'KBDfansから新しいタクタイルスイッチ「KBD Panda」が発売されました。Holy Pandaにインスパイアされたこのスイッチは、よりシャープな触感が特徴です。',
+      url: 'https://www.mechanical-keyboard.org/',
+      image: './assets/shop_global.jpg',
+      category: 'shop_global_switch',
+      source: 'KBDfans',
+      productType: 'new',
+      saved: false
+    },
+    {
+      id: 'mock_ergonomic_1',
+      title: 'エルゴノミクスキーボードの選び方ガイド',
+      date: new Date().toISOString(),
+      content: 'エルゴノミクスキーボードを選ぶ際のポイントを紹介します。スプリット型、傾斜角度、キースイッチの種類など、快適なタイピング環境を構築するためのヒントが満載です。',
+      url: 'https://www.mechanical-keyboard.org/',
+      image: './assets/ergonomic.jpg',
+      category: 'ergonomic',
+      source: 'r/ErgoMechKeyboards',
+      saved: false
+    },
+    {
+      id: 'mock_keycap_1',
+      title: '無刻印キーキャップの魅力とおすすめ製品',
+      date: new Date().toISOString(),
+      content: '無刻印キーキャップの魅力と、初心者でも使いやすいおすすめの製品を紹介します。タッチタイピングのスキルアップや、クリーンでミニマルなデスク環境を目指す方に最適です。',
+      url: 'https://www.mechanical-keyboard.org/',
+      image: './assets/blank_keycap.jpg',
+      category: 'blank_keycap',
+      source: 'TALP KEYBOARD',
+      saved: false
+    }
+  ];
   
   /**
    * 保存済みアイテムをローカルストレージから読み込む
@@ -570,8 +630,11 @@ const KeyboardFeed = (() => {
       // モックデータモードの場合
       if (_useMockData) {
         setTimeout(() => {
+          // モックデータをフィルタリング
           const mockItems = MOCK_ITEMS.filter(item => 
-            source.category === 'all' || item.category === source.category
+            source.category === 'all' || 
+            item.category === source.category ||
+            item.category.startsWith(source.category + '_')
           );
           console.log(`KeyboardFeed: ${source.name}のモックデータ${mockItems.length}件を返却`);
           resolve(mockItems);
@@ -631,9 +694,14 @@ const KeyboardFeed = (() => {
    * @returns {string} プレーンテキスト
    */
   function _stripHtml(html) {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
+    try {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || '';
+    } catch (error) {
+      console.error('KeyboardFeed: HTMLタグ除去エラー', error);
+      return html || '';
+    }
   }
   
   /**
@@ -860,8 +928,23 @@ const KeyboardFeed = (() => {
     });
   }
   
+  /**
+   * 初期化状態を確認
+   * @public
+   * @returns {boolean} 初期化済みの場合true
+   */
+  function isInitialized() {
+    return _isInitialized;
+  }
+  
   // イニシャライザ（すぐに実行される）
   function _init() {
+    // 既に初期化済みなら早期リターン
+    if (_isInitialized) {
+      console.log('KeyboardFeed: 既に初期化済みです');
+      return;
+    }
+    
     console.log('KeyboardFeed: 初期化中...');
     
     try {
@@ -871,11 +954,36 @@ const KeyboardFeed = (() => {
       // ローカルストレージから保存済みアイテムを読み込む
       const loaded = _loadFeedItems();
       
-      // アイテムがなければサーバーから取得を試みる
+      // アイテムがなければデバッグモードで初期データを表示
       if (!loaded || _feedItems.length === 0) {
-        console.log('KeyboardFeed: 保存データがないためサーバーから取得を開始します');
-        // ここでは何もせず、ユーザーが更新ボタンを押したときに取得する
+        console.log('KeyboardFeed: 保存データがないため初期データを使用します');
         _feedItems = [];
+        
+        // デバッグモードを一時的に有効化してモックデータを使用
+        const originalDebugMode = _useMockData;
+        _useMockData = true;
+        
+        // モックデータをロード
+        const mockPromises = FEED_SOURCES.slice(0, 3).map(source => _fetchSource(source));
+        Promise.all(mockPromises)
+          .then(resultsArray => {
+            const mockItems = resultsArray.flat();
+            if (mockItems.length > 0) {
+              // モックデータを追加
+              _feedItems = [...mockItems, ..._feedItems];
+              console.log(`KeyboardFeed: ${mockItems.length}個のモックデータを読み込みました`);
+              
+              // ローカルストレージに保存
+              _saveFeedItems();
+            }
+            
+            // デバッグモードを元に戻す
+            _useMockData = originalDebugMode;
+          })
+          .catch(error => {
+            console.error('KeyboardFeed: モックデータ読み込みエラー', error);
+            _useMockData = originalDebugMode;
+          });
       }
       
       // 保存済みアイテムの情報を復元
@@ -891,12 +999,16 @@ const KeyboardFeed = (() => {
         _startBackgroundUpdate();
       }
       
+      // 初期化完了フラグをセット
+      _isInitialized = true;
+      
       console.log(`KeyboardFeed: ${_feedItems.length}個のアイテムで初期化完了`);
     } catch (error) {
       console.error('KeyboardFeed: 初期化エラー', error);
       // エラー時は最低限の初期化
-      _feedItems = [];
+      _feedItems = MOCK_ITEMS.slice();
       _lastUpdated = new Date();
+      _isInitialized = true;
     }
   }
   
@@ -914,6 +1026,14 @@ const KeyboardFeed = (() => {
     }
     if (typeof savedOnly !== 'boolean') {
       savedOnly = false;
+    }
+    
+    // 初期化されていない場合はモックデータを返す
+    if (!_isInitialized || _feedItems.length === 0) {
+      return MOCK_ITEMS.filter(item => {
+        if (category === 'all') return true;
+        return item.category === category || item.category.startsWith(category + '_');
+      });
     }
     
     return _feedItems.filter(item => {
@@ -1130,9 +1250,10 @@ const KeyboardFeed = (() => {
     setUpdateInterval,
     getUpdateInterval,
     isBackgroundUpdateEnabled,
-    onNewItems
+    onNewItems,
+    isInitialized
   };
 })();
 
 // モジュールの存在確認用（デバッグ用）
-console.log('KeyboardFeed: モジュールが読み込まれました - キーボードショップ情報対応版');
+console.log('KeyboardFeed: モジュールが読み込まれました - 初期化処理改善版');
