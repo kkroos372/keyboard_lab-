@@ -1,6 +1,6 @@
 /**
  * KeyboardLab アプリケーションメインスクリプト
- * バージョン: 2.0.0 (エラー修正および検索機能対応版)
+ * バージョン: 2.1.0 (FeedUI連携強化版)
  */
 
 // アプリ初期化ログ
@@ -8,6 +8,8 @@ console.log('app.js: スクリプト読み込み開始');
 
 // グローバル変数
 let isInitialized = false;
+let initRetryCount = 0;
+const MAX_INIT_RETRY = 3;
 
 // アプリケーション初期化
 function initApp() {
@@ -68,19 +70,9 @@ function initTabs() {
         targetContent.classList.add('active');
         console.log(`app.js: タブコンテンツ表示: ${tabId}`);
         
-        // 情報タブが選択された場合、フィードUIの自動初期化をトリガー
-        if (tabId === 'info' && typeof FeedUI !== 'undefined') {
-          console.log('app.js: 情報タブ選択 - フィードUI初期化トリガー');
-          const feedContainer = document.getElementById('feed-container');
-          if (feedContainer && typeof FeedUI.init === 'function') {
-            setTimeout(() => {
-              try {
-                FeedUI.init('feed-container');
-              } catch (error) {
-                console.error('app.js: フィードUI初期化エラー:', error);
-              }
-            }, 100);
-          }
+        // 情報タブが選択された場合、フィードUIの初期化をトリガー
+        if (tabId === 'info') {
+          initFeedUI();
         }
       } else {
         console.error(`app.js: 対応するタブコンテンツが見つかりません: ${tabId}`);
@@ -89,6 +81,63 @@ function initTabs() {
   });
   
   console.log('app.js: タブ初期化完了');
+}
+
+// フィードUIの初期化
+function initFeedUI() {
+  // フィードUIが既に定義されているか確認
+  if (typeof FeedUI === 'undefined') {
+    console.warn('app.js: FeedUIモジュールが見つかりません。遅延ロードを試みます。');
+    
+    // 遅延ロードを試みる（最大800ms待機）
+    setTimeout(() => {
+      if (typeof FeedUI !== 'undefined') {
+        console.log('app.js: FeedUIモジュールを遅延ロードしました');
+        initFeedUIContent();
+      } else {
+        console.error('app.js: FeedUIモジュールのロードに失敗しました');
+      }
+    }, 800);
+    return;
+  }
+  
+  // FeedUIが既に読み込まれている場合
+  initFeedUIContent();
+}
+
+// フィードUIコンテンツの初期化
+function initFeedUIContent() {
+  if (typeof FeedUI === 'undefined') {
+    console.error('app.js: FeedUIモジュールが使用できません');
+    return;
+  }
+  
+  // FeedUIが既に初期化されているか確認
+  if (typeof FeedUI.isInitialized === 'function' && FeedUI.isInitialized()) {
+    console.log('app.js: FeedUIは既に初期化済みです');
+    return;
+  }
+  
+  console.log('app.js: FeedUI初期化を開始します');
+  const feedContainer = document.getElementById('feed-container');
+  
+  if (feedContainer) {
+    // フィードUIを初期化
+    try {
+      const result = FeedUI.init('feed-container');
+      console.log(`app.js: FeedUI初期化${result ? '成功' : '失敗'}`);
+      
+      // ロード中プレースホルダーがあれば削除
+      const placeholder = document.getElementById('feed-loading-placeholder');
+      if (placeholder) {
+        placeholder.style.display = 'none';
+      }
+    } catch (error) {
+      console.error('app.js: FeedUI初期化エラー:', error);
+    }
+  } else {
+    console.error('app.js: feed-containerが見つかりません');
+  }
 }
 
 // 追加ボタンの初期化
@@ -131,11 +180,31 @@ function updateDebugInfo() {
   }
 }
 
+// 初期化を試みる（リトライ機能付き）
+function tryInitApp() {
+  try {
+    initApp();
+  } catch (error) {
+    console.error(`app.js: 初期化試行 ${initRetryCount + 1}/${MAX_INIT_RETRY} 失敗:`, error);
+    
+    if (initRetryCount < MAX_INIT_RETRY) {
+      initRetryCount++;
+      console.log(`app.js: ${initRetryCount*500}ms後に再試行します`);
+      
+      // 指数バックオフで再試行
+      setTimeout(tryInitApp, initRetryCount * 500);
+    } else {
+      console.error('app.js: 初期化の最大試行回数に達しました');
+      alert('アプリの初期化に失敗しました。ページを再読み込みしてください。');
+    }
+  }
+}
+
 // DOMContentLoadedイベントリスナー - 早めに初期化を行う
 document.addEventListener('DOMContentLoaded', function() {
   console.log('app.js: DOMContentLoaded イベント発火');
   // 少し遅延させて初期化（他のスクリプトが読み込まれるのを待つ）
-  setTimeout(initApp, 10);
+  setTimeout(tryInitApp, 100);
 });
 
 // ページロード完了時のバックアップリスナー
@@ -143,7 +212,14 @@ window.addEventListener('load', function() {
   console.log('app.js: window.load イベント発火');
   if (!isInitialized) {
     console.warn('app.js: DOMContentLoadedで初期化されていませんでした。再試行します。');
-    initApp();
+    tryInitApp();
+    
+    // 情報タブが最初から表示されていれば初期化
+    const infoTab = document.getElementById('info');
+    if (infoTab && infoTab.classList.contains('active')) {
+      console.log('app.js: 情報タブがアクティブなので、FeedUIを初期化します');
+      setTimeout(initFeedUI, 300);
+    }
   }
 });
 
