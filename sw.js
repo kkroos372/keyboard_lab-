@@ -1,8 +1,9 @@
 /**
  * KeyboardLab Service Worker
- * バージョン: 4.1.0 - キーボードショップ情報対応版
+ * バージョン: 4.1.1 - 初期化処理改善版
  * 
  * 変更履歴:
+ * - 4.1.1: キャッシュ管理の改善とエラーハンドリングの強化
  * - 4.1.0: キーボードショップ情報対応機能追加
  * - 4.0.0: 分割キーボード、エルゴノミクス、ブランクキーキャップのフィード追加
  * - 3.0.0: 分割キーボード・エルゴノミクスキーボード・無刻印キーキャップ対応
@@ -11,7 +12,7 @@
  * - 1.0.0: 初期バージョン
  */
 
-const CACHE_NAME = 'keyboardlab-v4.1.0';
+const CACHE_NAME = 'keyboardlab-v4.1.1';
 const DEBUG = true;
 
 // キャッシュするアセット
@@ -63,14 +64,24 @@ self.addEventListener('install', event => {
       .then(cache => {
         logDebug(`キャッシュ '${CACHE_NAME}' を開きました`);
         logDebug(`${ASSETS.length}個のファイルをキャッシュします`);
-        return cache.addAll(ASSETS);
+        
+        // アセットを順番にキャッシュ（一括ではなく順次処理）
+        return Promise.all(
+          ASSETS.map(url => {
+            return cache.add(url).catch(error => {
+              console.error(`[ServiceWorker] ${url}のキャッシュに失敗:`, error);
+              // 個別のエラーはキャッチするが、全体のインストールは継続
+            });
+          })
+        );
       })
       .then(() => {
-        logDebug('すべてのアセットをキャッシュしました');
+        logDebug('アセットのキャッシュが完了しました');
         return self.skipWaiting();
       })
       .catch(error => {
-        console.error('[ServiceWorker] キャッシュエラー:', error);
+        console.error('[ServiceWorker] キャッシュ全体のエラー:', error);
+        // エラー時も処理を続行
       })
   );
 });
@@ -157,6 +168,8 @@ function _saveLastUpdateTime(date) {
         headers: { 'Content-Type': 'text/plain' }
       })
     );
+  }).catch(error => {
+    console.error('[ServiceWorker] 更新時刻の保存に失敗:', error);
   });
   
   return timeStr;
@@ -164,104 +177,157 @@ function _saveLastUpdateTime(date) {
 
 // 更新をチェック
 async function _checkForUpdates() {
-  // 現在時刻を記録
-  lastUpdateAttempt = new Date();
-  _saveLastUpdateTime(lastUpdateAttempt);
-  
-  logDebug('フィード更新をチェックしています...');
-  
-  // クライアントがあるか確認
-  const clients = await self.clients.matchAll();
-  
-  // アクティブなクライアントがなければ、SW自体でチェックを実行
-  if (clients.length === 0) {
-    logDebug('アクティブなクライアントがありません。サービスワーカーから更新を実行');
+  try {
+    // 現在時刻を記録
+    lastUpdateAttempt = new Date();
+    _saveLastUpdateTime(lastUpdateAttempt);
     
-    // スクリプトファイルに変更がないか確認
-    try {
-      // keyboard-feed.jsが更新されているか確認
-      const feedResponse = await fetch('./keyboard-feed.js', {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' }
-      });
+    logDebug('フィード更新をチェックしています...');
+    
+    // クライアントがあるか確認
+    const clients = await self.clients.matchAll();
+    
+    // アクティブなクライアントがなければ、SW自体でチェックを実行
+    if (clients.length === 0) {
+      logDebug('アクティブなクライアントがありません。サービスワーカーから更新を実行');
       
-      if (feedResponse.ok) {
-        // キャッシュを更新
-        const cache = await caches.open(CACHE_NAME);
-        await cache.put('./keyboard-feed.js', feedResponse);
-        logDebug('keyboard-feed.jsのキャッシュを更新しました');
+      // スクリプトファイルに変更がないか確認
+      try {
+        // メインJSファイルのキャッシュを更新
+        const jsFiles = ['app.js', 'keyboard-feed.js', 'feed-ui.js'];
+        
+        for (const jsFile of jsFiles) {
+          try {
+            const fileResponse = await fetch(`./${jsFile}`, {
+              cache: 'no-store',
+              headers: { 'Cache-Control': 'no-cache' }
+            });
+            
+            if (fileResponse.ok) {
+              // キャッシュを更新
+              const cache = await caches.open(CACHE_NAME);
+              await cache.put(`./${jsFile}`, fileResponse);
+              logDebug(`${jsFile}のキャッシュを更新しました`);
+            }
+          } catch (fileError) {
+            logDebug(`${jsFile}の更新チェックに失敗しました: ${fileError}`);
+          }
+        }
+      } catch (error) {
+        logDebug('スクリプトファイルの更新チェックに失敗しました: ' + error);
       }
-    } catch (error) {
-      logDebug('スクリプトファイルの更新チェックに失敗しました: ' + error);
+      
+      // キーボードショップ情報のフィードをチェック
+      try {
+        // 日本のショップ情報をチェック
+        const jpShopResponse = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fyushakobo.jp%2Fblogs%2Fnews%2Frss', {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        
+        if (jpShopResponse.ok) {
+          logDebug('日本のキーボードショップ情報チェック成功');
+        } else {
+          logDebug('日本のキーボードショップ情報チェック失敗: ' + jpShopResponse.status);
+        }
+        
+        // 海外のショップ情報をチェック
+        const globalShopResponse = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fkbdfans.com%2Fblogs%2Fnews.atom', {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        
+        if (globalShopResponse.ok) {
+          logDebug('海外のキーボードショップ情報チェック成功');
+        } else {
+          logDebug('海外のキーボードショップ情報チェック失敗: ' + globalShopResponse.status);
+        }
+      } catch (error) {
+        logDebug('キーボードショップ情報の更新チェックに失敗しました: ' + error);
+      }
+      
+      // 分割キーボード関連のフィードもチェック
+      try {
+        const splitResponse = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fergomechkeyboards%2F.rss', {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        
+        if (splitResponse.ok) {
+          logDebug('分割キーボードフィードチェック成功');
+        } else {
+          logDebug('分割キーボードフィードチェック失敗: ' + splitResponse.status);
+        }
+      } catch (error) {
+        logDebug('分割キーボードフィードの更新チェックに失敗しました: ' + error);
+      }
+    } else {
+      // アクティブなクライアントがある場合は、クライアントに更新チェックをメッセージ送信
+      logDebug('アクティブなクライアントに更新チェックを依頼します');
+      
+      clients.forEach(client => {
+        client.postMessage({
+          action: 'checkUpdate',
+          timestamp: lastUpdateAttempt.toISOString()
+        });
+      });
     }
-    
-    // キーボードショップ情報のフィードをチェック
-    try {
-      // 日本のショップ情報をチェック
-      const jpShopResponse = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fyushakobo.jp%2Fblogs%2Fnews%2Frss', {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      
-      if (jpShopResponse.ok) {
-        logDebug('日本のキーボードショップ情報チェック成功');
-      } else {
-        logDebug('日本のキーボードショップ情報チェック失敗: ' + jpShopResponse.status);
-      }
-      
-      // 海外のショップ情報をチェック
-      const globalShopResponse = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fkbdfans.com%2Fblogs%2Fnews.atom', {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      
-      if (globalShopResponse.ok) {
-        logDebug('海外のキーボードショップ情報チェック成功');
-      } else {
-        logDebug('海外のキーボードショップ情報チェック失敗: ' + globalShopResponse.status);
-      }
-    } catch (error) {
-      logDebug('キーボードショップ情報の更新チェックに失敗しました: ' + error);
-    }
-    
-    // 分割キーボード関連のフィードもチェック
-    try {
-      const splitResponse = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fergomechkeyboards%2F.rss', {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      
-      if (splitResponse.ok) {
-        logDebug('分割キーボードフィードチェック成功');
-      } else {
-        logDebug('分割キーボードフィードチェック失敗: ' + splitResponse.status);
-      }
-    } catch (error) {
-      logDebug('分割キーボードフィードの更新チェックに失敗しました: ' + error);
-    }
-  } else {
-    // アクティブなクライアントがある場合は、クライアントに更新チェックをメッセージ送信
-    logDebug('アクティブなクライアントに更新チェックを依頼します');
-    
-    clients.forEach(client => {
-      client.postMessage({
-        action: 'checkUpdate',
-        timestamp: lastUpdateAttempt.toISOString()
-      });
-    });
+  } catch (error) {
+    console.error('[ServiceWorker] 更新チェック全体のエラー:', error);
   }
 }
 
 // フェッチリクエスト時
 self.addEventListener('fetch', event => {
+  // ネットワークエラーや予期せぬ例外からの回復を確保する
+  const handleFetchError = (error) => {
+    console.error(`[ServiceWorker] フェッチエラー:`, error);
+    
+    // 画像リクエストの場合はプレースホルダー画像を返す
+    if (event.request.url.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
+      return caches.match('./assets/placeholder.jpg')
+        .then(response => {
+          if (response) {
+            return response;
+          }
+          return new Response('画像が見つかりません', {
+            status: 404,
+            headers: { 'Content-Type': 'text/plain' }
+          });
+        });
+    }
+    
+    // HTMLファイルの場合はindex.htmlを返す
+    if (event.request.mode === 'navigate') {
+      return caches.match('./index.html')
+        .then(response => {
+          if (response) {
+            return response;
+          }
+          return new Response('ページが見つかりません', {
+            status: 404,
+            headers: { 'Content-Type': 'text/html' }
+          });
+        });
+    }
+    
+    // その他のリクエストエラー
+    return new Response('ネットワークエラーが発生しました', {
+      status: 408,
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  };
+  
   // ナビゲーションリクエストの処理
   if (event.request.mode === 'navigate') {
     logDebug(`ナビゲーションリクエスト: ${event.request.url}`);
     event.respondWith(
-      fetch(event.request).catch(() => {
-        logDebug('ナビゲーションリクエストオフライン - キャッシュされたindex.htmlを返します');
-        return caches.match('./index.html');
-      })
+      fetch(event.request)
+        .catch(() => {
+          logDebug('ナビゲーションリクエストオフライン - キャッシュされたindex.htmlを返します');
+          return caches.match('./index.html');
+        })
+        .catch(handleFetchError)
     );
     return;
   }
@@ -277,9 +343,17 @@ self.addEventListener('fetch', event => {
         .then(response => {
           // レスポンスのクローンを作成してキャッシュに保存
           const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseToCache);
-          });
+          caches.open(CACHE_NAME)
+            .then(cache => {
+              try {
+                cache.put(event.request, responseToCache);
+              } catch (cacheError) {
+                console.error(`[ServiceWorker] キャッシュ保存エラー:`, cacheError);
+              }
+            })
+            .catch(error => {
+              console.error(`[ServiceWorker] キャッシュオープンエラー:`, error);
+            });
           return response;
         })
         .catch(() => {
@@ -287,6 +361,7 @@ self.addEventListener('fetch', event => {
           logDebug(`API/JSONリクエストオフライン - キャッシュを試行: ${event.request.url}`);
           return caches.match(event.request);
         })
+        .catch(handleFetchError)
     );
     return;
   }
@@ -294,45 +369,50 @@ self.addEventListener('fetch', event => {
   // 通常のリクエスト - キャッシュファーストの戦略
   logDebug(`通常リクエスト: ${event.request.url}`);
   event.respondWith(
-    caches.match(event.request).then(response => {
-      // キャッシュにヒットした場合
-      if (response) {
-        logDebug(`キャッシュからの応答: ${event.request.url}`);
-        return response;
-      }
-      
-      // キャッシュにない場合はネットワークから取得
-      logDebug(`キャッシュにない - ネットワークから取得: ${event.request.url}`);
-      return fetch(event.request)
-        .then(networkResponse => {
-          // キャッシュできないレスポンスの場合はそのまま返す
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+    caches.match(event.request)
+      .then(response => {
+        // キャッシュにヒットした場合
+        if (response) {
+          logDebug(`キャッシュからの応答: ${event.request.url}`);
+          return response;
+        }
+        
+        // キャッシュにない場合はネットワークから取得
+        logDebug(`キャッシュにない - ネットワークから取得: ${event.request.url}`);
+        return fetch(event.request)
+          .then(networkResponse => {
+            // キャッシュできないレスポンスの場合はそのまま返す
+            if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+              return networkResponse;
+            }
+            
+            // 取得したレスポンスをキャッシュに追加
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                logDebug(`ネットワークレスポンスをキャッシュに追加: ${event.request.url}`);
+                try {
+                  cache.put(event.request, responseToCache);
+                } catch (cacheError) {
+                  console.error(`[ServiceWorker] キャッシュ保存エラー:`, cacheError);
+                }
+              })
+              .catch(error => {
+                console.error(`[ServiceWorker] キャッシュオープンエラー:`, error);
+              });
+            
             return networkResponse;
-          }
-          
-          // 取得したレスポンスをキャッシュに追加
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            logDebug(`ネットワークレスポンスをキャッシュに追加: ${event.request.url}`);
-            cache.put(event.request, responseToCache);
+          })
+          .catch(error => {
+            // エラーハンドラーへ処理を委譲
+            return handleFetchError(error);
           });
-          
-          return networkResponse;
-        })
-        .catch(error => {
-          console.error(`[ServiceWorker] フェッチエラー: ${error}`);
-          // 画像リクエストの場合はプレースホルダー画像を返す
-          if (event.request.url.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
-            logDebug(`画像フェッチ失敗 - プレースホルダーを返します: ${event.request.url}`);
-            return caches.match('./assets/placeholder.jpg');
-          }
-          // その他のリクエストはエラーを表示
-          return new Response('ネットワークエラー', {
-            status: 408,
-            headers: { 'Content-Type': 'text/plain' }
-          });
-        });
-    })
+      })
+      .catch(error => {
+        // キャッシュマッチングエラー
+        console.error(`[ServiceWorker] キャッシュマッチングエラー:`, error);
+        return handleFetchError(error);
+      })
   );
 });
 
@@ -344,12 +424,22 @@ self.addEventListener('message', event => {
   if (event.data && event.data.action === 'clearCache') {
     logDebug('キャッシュクリアリクエスト受信');
     event.waitUntil(
-      caches.delete(CACHE_NAME).then(() => {
-        logDebug('キャッシュをクリアしました');
-        if (event.ports && event.ports[0]) {
-          event.ports[0].postMessage({ result: 'success' });
-        }
-      })
+      caches.delete(CACHE_NAME)
+        .then(() => {
+          logDebug('キャッシュをクリアしました');
+          if (event.ports && event.ports[0]) {
+            event.ports[0].postMessage({ result: 'success' });
+          }
+        })
+        .catch(error => {
+          console.error('[ServiceWorker] キャッシュクリアエラー:', error);
+          if (event.ports && event.ports[0]) {
+            event.ports[0].postMessage({ 
+              result: 'error',
+              message: error.message
+            });
+          }
+        })
     );
   }
   
@@ -449,6 +539,9 @@ self.addEventListener('push', event => {
   
   event.waitUntil(
     self.registration.showNotification(title, options)
+      .catch(error => {
+        console.error('[ServiceWorker] 通知表示エラー:', error);
+      })
   );
 });
 
@@ -462,19 +555,23 @@ self.addEventListener('notificationclick', event => {
     event.notification.data.url : './';
   
   event.waitUntil(
-    clients.matchAll({ type: 'window' }).then(windowClients => {
-      // 既存のウィンドウを探す
-      for (const client of windowClients) {
-        if (client.url === urlToOpen && 'focus' in client) {
-          return client.focus();
+    clients.matchAll({ type: 'window' })
+      .then(windowClients => {
+        // 既存のウィンドウを探す
+        for (const client of windowClients) {
+          if (client.url === urlToOpen && 'focus' in client) {
+            return client.focus();
+          }
         }
-      }
-      // 新しいウィンドウを開く
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
-      }
-    })
+        // 新しいウィンドウを開く
+        if (clients.openWindow) {
+          return clients.openWindow(urlToOpen);
+        }
+      })
+      .catch(error => {
+        console.error('[ServiceWorker] 通知クリック処理エラー:', error);
+      })
   );
 });
 
-logDebug('Service Worker 初期化完了 - キーボードショップ情報対応版 v4.1.0');
+logDebug('Service Worker 初期化完了 - 初期化処理改善版 v4.1.1');
